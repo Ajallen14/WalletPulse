@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:wallet_pulse/features/dashboard/presentation/camera_screen.dart';
 import 'home_screen.dart';
 
 class MainLayout extends StatefulWidget {
@@ -12,7 +13,6 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
-  // Streamlined to only the features we are building
   final List<Widget> _screens = [
     const HomeScreen(),
     const Center(
@@ -23,10 +23,7 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFF121212,
-      ), // Deeper dark background for contrast
-      // Extend body behind the bottom bar to enhance the glassmorphism effect
+      backgroundColor: const Color(0xFF121212),
       extendBody: true,
       body: _screens[_currentIndex],
       floatingActionButton: Container(
@@ -35,10 +32,7 @@ class _MainLayoutState extends State<MainLayout> {
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           gradient: LinearGradient(
-            colors: [
-              Color(0xFFE0F7FA),
-              Color(0xFFF8BBD0),
-            ], // Pastel cyan to pink
+            colors: [Color(0xFFE0F7FA), Color(0xFFF8BBD0)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -52,7 +46,10 @@ class _MainLayoutState extends State<MainLayout> {
         ),
         child: FloatingActionButton(
           onPressed: () {
-            // TODO: Navigate to Camera Scanner Screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CameraScreen()),
+            );
           },
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -69,7 +66,7 @@ class _MainLayoutState extends State<MainLayout> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: BottomAppBar(
-            color: Colors.white.withOpacity(0.05), // Glassy base
+            color: Colors.white.withOpacity(0.05),
             elevation: 0,
             shape: const CircularNotchedRectangle(),
             notchMargin: 10.0,
@@ -79,7 +76,7 @@ class _MainLayoutState extends State<MainLayout> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildNavItem(Icons.grid_view_rounded, 0, "Dashboard"),
-                  const SizedBox(width: 40), // Space for the FAB
+                  const SizedBox(width: 40),
                   _buildNavItem(Icons.call_split_rounded, 1, "Splits"),
                 ],
               ),
