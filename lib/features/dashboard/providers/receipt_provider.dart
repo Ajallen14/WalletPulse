@@ -27,7 +27,6 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
   }
 
   Future<void> refreshData() async {
-    // Keep current filter while showing loading state
     state = DashboardState(
       isLoading: true,
       allReceipts: state.allReceipts,
@@ -43,7 +42,18 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
     _applyFilter(state.allReceipts, newFilter);
   }
 
-  void _applyFilter(List<Map<String, dynamic>> rawReceipts, ExpenseFilter filter) {
+  // Delete and Refresh
+  Future<void> deleteReceipt(String receiptId) async {
+    // 1. Delete from the database
+    await DatabaseHelper.instance.deleteReceipt(receiptId);
+    // 2. Refresh the UI data so the charts update instantly
+    await refreshData();
+  }
+
+  void _applyFilter(
+    List<Map<String, dynamic>> rawReceipts,
+    ExpenseFilter filter,
+  ) {
     double total = 0.0;
     Map<String, double> catTotals = {};
     List<Map<String, dynamic>> filteredList = [];
@@ -63,16 +73,17 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
           include = true;
         }
       } else if (filter == ExpenseFilter.today) {
-        if (date.year == now.year && date.month == now.month && date.day == now.day) {
+        if (date.year == now.year &&
+            date.month == now.month &&
+            date.day == now.day) {
           include = true;
         }
       }
 
-      // If it matches, add it to our totals and our filtered list
       if (include) {
         filteredList.add(receipt);
         total += amount;
-        
+
         if (catTotals.containsKey(category)) {
           catTotals[category] = catTotals[category]! + amount;
         } else {
@@ -92,6 +103,7 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
   }
 }
 
-final dashboardProvider = StateNotifierProvider<ReceiptNotifier, DashboardState>((ref) {
-  return ReceiptNotifier();
-});
+final dashboardProvider =
+    StateNotifierProvider<ReceiptNotifier, DashboardState>((ref) {
+      return ReceiptNotifier();
+    });

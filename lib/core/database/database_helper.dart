@@ -190,4 +190,10 @@ class DatabaseHelper {
       ORDER BY receipts.purchase_date DESC
     ''');
   }
+
+  // Delete a Receipt
+  Future<int> deleteReceipt(String id) async {
+    final db = await instance.database;
+    return await db.delete('receipts', where: 'id = ?', whereArgs: [id]);
+  }
 }
