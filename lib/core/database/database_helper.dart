@@ -22,7 +22,7 @@ class DatabaseHelper {
   _initDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final path = join(documentsDirectory.path, _databaseName);
-    
+
     return await openDatabase(
       path,
       version: _databaseVersion,
@@ -80,8 +80,8 @@ class DatabaseHelper {
           FOREIGN KEY (line_item_id) REFERENCES line_items (id) ON DELETE CASCADE
       )
     ''');
-    
-    // Seed the 10 categories
+
+    // Seed the 10 exact categories
     final defaultCategories = [
       {'id': _uuid.v4(), 'name': 'Groceries', 'color_hex': '#E1BEE7'},
       {'id': _uuid.v4(), 'name': 'Food & Dining', 'color_hex': '#B2DFDB'},
@@ -101,11 +101,25 @@ class DatabaseHelper {
   }
 
   // --- The Master Save Method ---
-  Future<void> saveReceiptFromGemini(Map<String, dynamic> data, String imagePath) async {
+  Future<void> saveReceiptFromGemini(
+    Map<String, dynamic> data,
+    String imagePath,
+  ) async {
     final db = await instance.database;
+    String normalizeDate(String inputDate) {
+      try {
+        DateTime.parse(inputDate);
+        return inputDate;
+      } catch (e) {
+        final parts = inputDate.split(RegExp(r'[-/]'));
+        if (parts.length == 3) {
+          return '${parts[2]}-${parts[1]}-${parts[0]}';
+        }
+        return DateTime.now().toIso8601String().split('T')[0];
+      }
+    }
 
     await db.transaction((txn) async {
-      
       // 1. Helper function to find a Category ID by its name
       Future<String?> getCategoryId(String categoryName) async {
         final List<Map<String, dynamic>> maps = await txn.query(
@@ -117,19 +131,26 @@ class DatabaseHelper {
         if (maps.isNotEmpty) {
           return maps.first['id'] as String;
         }
-        // Fallback to "Other" if AI makes a mistake
-        final otherMap = await txn.query('categories', columns: ['id'], where: 'name = ?', whereArgs: ['Other']);
+        final otherMap = await txn.query(
+          'categories',
+          columns: ['id'],
+          where: 'name = ?',
+          whereArgs: ['Other'],
+        );
         return otherMap.isNotEmpty ? otherMap.first['id'] as String : null;
       }
 
       // 2. Insert the main Receipt
       final String receiptId = _uuid.v4();
-      final String? masterCategoryId = await getCategoryId(data['receipt_category'] ?? 'Other');
+      final String? masterCategoryId = await getCategoryId(
+        data['receipt_category'] ?? 'Other',
+      );
+      final cleanDate = normalizeDate(data['date'] ?? '');
 
       await txn.insert('receipts', {
         'id': receiptId,
         'merchant_name': data['merchant_name'],
-        'purchase_date': data['date'], // Gemini returns YYYY-MM-DD
+        'purchase_date': cleanDate,
         'total_amount': data['total_amount'],
         'tax_amount': data['tax_amount'],
         'category_id': masterCategoryId,
@@ -140,7 +161,9 @@ class DatabaseHelper {
       if (data['items'] != null && data['items'] is List) {
         for (var item in data['items']) {
           final String itemId = _uuid.v4();
-          final String? itemCategoryId = await getCategoryId(item['category'] ?? 'Other');
+          final String? itemCategoryId = await getCategoryId(
+            item['category'] ?? 'Other',
+          );
 
           await txn.insert('line_items', {
             'id': itemId,
@@ -152,5 +175,19 @@ class DatabaseHelper {
         }
       }
     });
+  }
+
+  // Fetch All Receipts
+  Future<List<Map<String, dynamic>>> getAllReceipts() async {
+    final db = await instance.database;
+
+    return await db.rawQuery('''
+      SELECT 
+        receipts.*, 
+        categories.name as category_name 
+      FROM receipts
+      LEFT JOIN categories ON receipts.category_id = categories.id
+      ORDER BY receipts.purchase_date DESC
+    ''');
   }
 }

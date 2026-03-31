@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wallet_pulse/core/database/database_helper.dart';
 import 'package:wallet_pulse/features/dashboard/presentation/main_layout.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // await DatabaseHelper.instance.database;
+  await dotenv.load(fileName: ".env");
+
+  await DatabaseHelper.instance.database;
 
   runApp(
     const ProviderScope(child: WalletPulseApp()),

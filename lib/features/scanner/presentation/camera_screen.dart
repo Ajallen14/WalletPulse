@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lottie/lottie.dart';
 import '../providers/gemini_provider.dart';
 import '../../../core/widgets/processing_overlay.dart';
+import '../../../core/database/database_helper.dart';
+import '../../dashboard/providers/receipt_provider.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
   const CameraScreen({super.key});
@@ -37,7 +38,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
         _cameraController = CameraController(
           backCamera,
-          ResolutionPreset.high,
+          ResolutionPreset.medium,
           enableAudio: false,
         );
 
@@ -90,16 +91,30 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       final gemini = ref.read(geminiProvider);
 
       // 2. Send the image to the AI and wait for the JSON
-      await gemini.extractReceiptData(imageFile);
+      final extractedData = await gemini.extractReceiptData(imageFile);
+
+      debugPrint('========== AI EXTRACTION SUCCESS ==========');
+      debugPrint(extractedData.toString());
+
+      // 3. Save directly to SQLite
+      await DatabaseHelper.instance.saveReceiptFromGemini(
+        extractedData,
+        imageFile.path,
+      );
+
+      // 4. Tell the dashboard to reload the data
+      await ref.read(dashboardProvider.notifier).refreshData();
+
+      debugPrint('========== SAVED TO DATABASE ==========');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Receipt analyzed successfully!'),
+            content: Text('Receipt saved successfully!'),
             backgroundColor: Colors.teal,
           ),
         );
-        // We will add the database save logic here next!
+        Navigator.pop(context);
       }
     } catch (e) {
       debugPrint('AI Error: $e');
@@ -249,7 +264,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             ),
           ),
 
-          // 4. Loading Screen
+          // 4. Loading Screen Overlay
           if (_isProcessing)
             const ProcessingOverlay(message: 'Analyzing your receipt...'),
         ],
