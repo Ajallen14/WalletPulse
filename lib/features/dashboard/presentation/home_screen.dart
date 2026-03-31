@@ -35,97 +35,119 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 30),
               _buildChartSection(dashboardState),
               const SizedBox(height: 40),
-              Text(
-                dashboardState.currentFilter == ExpenseFilter.today
-                    ? 'Receipts Today'
-                    : 'Recent Receipts',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Text(
+                  dashboardState.currentFilter == ExpenseFilter.today
+                      ? 'Receipts Today'
+                      : 'Recent Receipts',
+                  key: ValueKey(
+                    dashboardState.currentFilter,
+                  ),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              if (dashboardState.filteredReceipts.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 20),
-                    child: Text(
-                      dashboardState.currentFilter == ExpenseFilter.today
-                          ? 'No expenses logged today. Tap the scanner!'
-                          : 'No receipts this month. Tap the scanner!',
-                      style: const TextStyle(color: Colors.white54),
-                    ),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.05),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
                   ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: dashboardState.filteredReceipts.length,
-                  itemBuilder: (context, index) {
-                    final receipt = dashboardState.filteredReceipts[index];
-
-                    final rawDate = DateTime.parse(receipt['purchase_date']);
-                    final formattedDate = DateFormat(
-                      'dd-MM-yyyy',
-                    ).format(rawDate);
-
-                    final formattedAmount = NumberFormat.currency(
-                      symbol: '₹',
-                      decimalDigits: 2,
-                    ).format(receipt['total_amount']);
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Dismissible(
-                        key: Key(receipt['id'].toString()),
-                        // CHANGED: Swipe left-to-right
-                        direction: DismissDirection.startToEnd,
-                        background: Container(
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 24),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.redAccent.withOpacity(0.3),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.delete_sweep_rounded,
-                            color: Colors.redAccent,
-                            size: 30,
+                ),
+                child: dashboardState.filteredReceipts.isEmpty
+                    ? Center(
+                        key: const ValueKey('empty_state'),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 20),
+                          child: Text(
+                            dashboardState.currentFilter == ExpenseFilter.today
+                                ? 'No expenses logged today. Tap the scanner!'
+                                : 'No receipts this month. Tap the scanner!',
+                            style: const TextStyle(color: Colors.white54),
                           ),
                         ),
+                      )
+                    : ListView.builder(
+                        key: ValueKey(
+                          'list_${dashboardState.currentFilter}',
+                        ),
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: dashboardState.filteredReceipts.length,
+                        itemBuilder: (context, index) {
+                          final receipt =
+                              dashboardState.filteredReceipts[index];
 
-                        onDismissed: (direction) {
-                          ref
-                              .read(dashboardProvider.notifier)
-                              .deleteReceipt(receipt['id']);
+                          final rawDate = DateTime.parse(
+                            receipt['purchase_date'],
+                          );
+                          final formattedDate = DateFormat(
+                            'dd-MM-yyyy',
+                          ).format(rawDate);
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '${receipt['merchant_name']} deleted',
+                          final formattedAmount = NumberFormat.currency(
+                            symbol: '₹',
+                            decimalDigits: 2,
+                          ).format(receipt['total_amount']);
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Dismissible(
+                              key: Key(receipt['id'].toString()),
+                              direction: DismissDirection.startToEnd,
+                              background: Container(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.only(left: 24),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: Colors.redAccent.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.delete_sweep_rounded,
+                                  color: Colors.redAccent,
+                                  size: 30,
+                                ),
                               ),
-                              backgroundColor: const Color(0xFF2C2C2E),
-                              behavior: SnackBarBehavior.floating,
+                              onDismissed: (direction) {
+                                ref
+                                    .read(dashboardProvider.notifier)
+                                    .deleteReceipt(receipt['id']);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${receipt['merchant_name']} deleted',
+                                    ),
+                                    backgroundColor: const Color(0xFF2C2C2E),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              child: _buildReceiptCard(
+                                merchantName: receipt['merchant_name'],
+                                category: receipt['category_name'] ?? 'Other',
+                                date: formattedDate,
+                                totalAmount: formattedAmount,
+                              ),
                             ),
                           );
                         },
-
-                        child: _buildReceiptCard(
-                          merchantName: receipt['merchant_name'],
-                          category: receipt['category_name'] ?? 'Other',
-                          date: formattedDate,
-                          totalAmount: formattedAmount,
-                        ),
                       ),
-                    );
-                  },
-                ),
+              ),
               const SizedBox(height: 80),
             ],
           ),
@@ -155,10 +177,6 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildSpendingSummary(DashboardState state, WidgetRef ref) {
-    final formattedTotal = NumberFormat.currency(
-      symbol: '₹',
-      decimalDigits: 2,
-    ).format(state.totalSpent);
     final filterText = state.currentFilter == ExpenseFilter.today
         ? 'Today'
         : 'This Month';
@@ -211,31 +229,39 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ),
-        RichText(
-          text: TextSpan(
-            text: 'Total Spent  ',
-            style: const TextStyle(color: Colors.white54, fontSize: 14),
-            children: [
-              TextSpan(
-                text: formattedTotal,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
+
+        Row(
+          children: [
+            const Text(
+              'Total Spent  ',
+              style: TextStyle(color: Colors.white54, fontSize: 14),
+            ),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: state.totalSpent),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                final formattedTotal = NumberFormat.currency(
+                  symbol: '₹',
+                  decimalDigits: 2,
+                ).format(value);
+                return Text(
+                  formattedTotal,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ],
     );
   }
 
   Widget _buildChartSection(DashboardState state) {
-    final formattedTotal = NumberFormat.currency(
-      symbol: '₹',
-      decimalDigits: 0,
-    ).format(state.totalSpent);
     final subtitleText = state.currentFilter == ExpenseFilter.today
         ? 'Total today'
         : 'Total this month';
@@ -276,22 +302,39 @@ class HomeScreen extends ConsumerWidget {
               startDegreeOffset: -90,
               sections: sections,
             ),
+            swapAnimationDuration: const Duration(milliseconds: 600),
+            swapAnimationCurve: Curves.easeInOutCubic,
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                formattedTotal,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: state.totalSpent),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  final formattedTotal = NumberFormat.currency(
+                    symbol: '₹',
+                    decimalDigits: 0,
+                  ).format(value);
+                  return Text(
+                    formattedTotal,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 4),
-              Text(
-                subtitleText,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Text(
+                  subtitleText,
+                  key: ValueKey(subtitleText),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
               ),
             ],
           ),
