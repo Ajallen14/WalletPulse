@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/database_helper.dart';
 
-enum ExpenseFilter { today, thisMonth }
+enum ExpenseFilter { today, thisMonth, lastMonth, allTime }
 
 class DashboardState {
   final List<Map<String, dynamic>> allReceipts;
@@ -17,7 +17,7 @@ class DashboardState {
     this.totalSpent = 0.0,
     this.categoryTotals = const {},
     this.isLoading = true,
-    this.currentFilter = ExpenseFilter.thisMonth, // Default to This Month
+    this.currentFilter = ExpenseFilter.thisMonth,
   });
 }
 
@@ -42,14 +42,6 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
     _applyFilter(state.allReceipts, newFilter);
   }
 
-  // Delete and Refresh
-  Future<void> deleteReceipt(String receiptId) async {
-    // 1. Delete from the database
-    await DatabaseHelper.instance.deleteReceipt(receiptId);
-    // 2. Refresh the UI data so the charts update instantly
-    await refreshData();
-  }
-
   void _applyFilter(
     List<Map<String, dynamic>> rawReceipts,
     ExpenseFilter filter,
@@ -59,6 +51,7 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
     List<Map<String, dynamic>> filteredList = [];
 
     final now = DateTime.now();
+    final lastMonthDate = DateTime(now.year, now.month - 1, 1);
 
     for (var receipt in rawReceipts) {
       final date = DateTime.parse(receipt['purchase_date']);
@@ -67,17 +60,19 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
 
       bool include = false;
 
-      // Determine if this receipt matches the active filter
-      if (filter == ExpenseFilter.thisMonth) {
-        if (date.month == now.month && date.year == now.year) {
+      if (filter == ExpenseFilter.allTime) {
+        include = true;
+      } else if (filter == ExpenseFilter.thisMonth) {
+        if (date.month == now.month && date.year == now.year) include = true;
+      } else if (filter == ExpenseFilter.lastMonth) {
+        if (date.month == lastMonthDate.month &&
+            date.year == lastMonthDate.year)
           include = true;
-        }
       } else if (filter == ExpenseFilter.today) {
         if (date.year == now.year &&
             date.month == now.month &&
-            date.day == now.day) {
+            date.day == now.day)
           include = true;
-        }
       }
 
       if (include) {
@@ -100,6 +95,11 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
       isLoading: false,
       currentFilter: filter,
     );
+  }
+
+  Future<void> deleteReceipt(String receiptId) async {
+    await DatabaseHelper.instance.deleteReceipt(receiptId);
+    await refreshData();
   }
 }
 

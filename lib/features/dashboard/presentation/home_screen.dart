@@ -18,6 +18,30 @@ class HomeScreen extends ConsumerWidget {
       );
     }
 
+    String listTitle = 'Recent Receipts';
+    if (dashboardState.currentFilter == ExpenseFilter.today)
+      listTitle = 'Receipts Today';
+    if (dashboardState.currentFilter == ExpenseFilter.lastMonth)
+      listTitle = 'Last Month\'s Receipts';
+    if (dashboardState.currentFilter == ExpenseFilter.allTime)
+      listTitle = 'All Receipts';
+
+    String emptyText = '';
+    switch (dashboardState.currentFilter) {
+      case ExpenseFilter.today:
+        emptyText = 'No expenses logged today. Tap the scanner!';
+        break;
+      case ExpenseFilter.thisMonth:
+        emptyText = 'No receipts this month. Tap the scanner!';
+        break;
+      case ExpenseFilter.lastMonth:
+        emptyText = 'No receipts from last month.';
+        break;
+      case ExpenseFilter.allTime:
+        emptyText = 'No receipts found. Tap the scanner!';
+        break;
+    }
+
     return SafeArea(
       child: RefreshIndicator(
         color: const Color(0xFFE0F7FA),
@@ -39,12 +63,8 @@ class HomeScreen extends ConsumerWidget {
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 child: Text(
-                  dashboardState.currentFilter == ExpenseFilter.today
-                      ? 'Receipts Today'
-                      : 'Recent Receipts',
-                  key: ValueKey(
-                    dashboardState.currentFilter,
-                  ),
+                  listTitle,
+                  key: ValueKey(dashboardState.currentFilter),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -72,31 +92,25 @@ class HomeScreen extends ConsumerWidget {
                         child: Padding(
                           padding: const EdgeInsets.only(top: 20),
                           child: Text(
-                            dashboardState.currentFilter == ExpenseFilter.today
-                                ? 'No expenses logged today. Tap the scanner!'
-                                : 'No receipts this month. Tap the scanner!',
+                            emptyText,
                             style: const TextStyle(color: Colors.white54),
                           ),
                         ),
                       )
                     : ListView.builder(
-                        key: ValueKey(
-                          'list_${dashboardState.currentFilter}',
-                        ),
+                        key: ValueKey('list_${dashboardState.currentFilter}'),
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: dashboardState.filteredReceipts.length,
                         itemBuilder: (context, index) {
                           final receipt =
                               dashboardState.filteredReceipts[index];
-
                           final rawDate = DateTime.parse(
                             receipt['purchase_date'],
                           );
                           final formattedDate = DateFormat(
                             'dd-MM-yyyy',
                           ).format(rawDate);
-
                           final formattedAmount = NumberFormat.currency(
                             symbol: '₹',
                             decimalDigits: 2,
@@ -177,9 +191,21 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildSpendingSummary(DashboardState state, WidgetRef ref) {
-    final filterText = state.currentFilter == ExpenseFilter.today
-        ? 'Today'
-        : 'This Month';
+    String filterText = '';
+    switch (state.currentFilter) {
+      case ExpenseFilter.today:
+        filterText = 'Today';
+        break;
+      case ExpenseFilter.thisMonth:
+        filterText = 'This Month';
+        break;
+      case ExpenseFilter.lastMonth:
+        filterText = 'Last Month';
+        break;
+      case ExpenseFilter.allTime:
+        filterText = 'All Time';
+        break;
+    }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -209,8 +235,23 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   const PopupMenuItem<ExpenseFilter>(
+                    value: ExpenseFilter.lastMonth,
+                    child: Text(
+                      'Last Month',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  const PopupMenuItem<ExpenseFilter>(
                     value: ExpenseFilter.today,
                     child: Text('Today', style: TextStyle(color: Colors.white)),
+                  ),
+                  const PopupMenuDivider(height: 1),
+                  const PopupMenuItem<ExpenseFilter>(
+                    value: ExpenseFilter.allTime,
+                    child: Text(
+                      'All Time',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
             child: _buildGlassContainer(
@@ -262,9 +303,21 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildChartSection(DashboardState state) {
-    final subtitleText = state.currentFilter == ExpenseFilter.today
-        ? 'Total today'
-        : 'Total this month';
+    String subtitleText = '';
+    switch (state.currentFilter) {
+      case ExpenseFilter.today:
+        subtitleText = 'Total today';
+        break;
+      case ExpenseFilter.thisMonth:
+        subtitleText = 'Total this month';
+        break;
+      case ExpenseFilter.lastMonth:
+        subtitleText = 'Total last month';
+        break;
+      case ExpenseFilter.allTime:
+        subtitleText = 'Total all time';
+        break;
+    }
 
     List<PieChartSectionData> sections = [];
     if (state.categoryTotals.isEmpty) {
