@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../dashboard/providers/receipt_provider.dart';
+import 'split_detail_screen.dart';
 
 class SplitsScreen extends ConsumerWidget {
   const SplitsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the dashboard provider, but grab ALL receipts, not just this month's
     final dashboardState = ref.watch(dashboardProvider);
     final receipts = dashboardState.allReceipts;
 
@@ -86,14 +86,10 @@ class SplitsScreen extends ConsumerWidget {
                       date: formattedDate,
                       totalAmount: formattedAmount,
                       onTap: () {
-                        // TODO: Navigate to the Line-Item Assignment Screen!
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Line-item assignment screen coming next!',
-                            ),
-                            backgroundColor: Colors.teal,
-                            behavior: SnackBarBehavior.floating,
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SplitDetailScreen(receipt: receipt),
                           ),
                         );
                       },
@@ -102,7 +98,7 @@ class SplitsScreen extends ConsumerWidget {
                 },
               ),
             ),
-          const SizedBox(height: 80), // Padding to avoid the floating notch
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -189,7 +185,7 @@ class SplitsScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: const Color(
                             0xFFF8BBD0,
-                          ), // Pastel Pink to match the theme
+                          ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
