@@ -1,10 +1,12 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 class DatabaseHelper {
   static const _databaseName = "WalletPulse.db";
   static const _databaseVersion = 1;
+  final _uuid = const Uuid();
 
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -42,7 +44,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // UPDATED: Added category_id and its foreign key
     await db.execute('''
       CREATE TABLE receipts (
           id TEXT PRIMARY KEY,
@@ -80,9 +81,76 @@ class DatabaseHelper {
       )
     ''');
     
-    // Default categories
-    await db.rawInsert("INSERT INTO categories (id, name, color_hex) VALUES ('1', 'Food & Dining', '#FF5733')");
-    await db.rawInsert("INSERT INTO categories (id, name, color_hex) VALUES ('2', 'Groceries', '#4CAF50')");
-    await db.rawInsert("INSERT INTO categories (id, name, color_hex) VALUES ('3', 'Electronics', '#2196F3')");
+    // Seed the 10 categories
+    final defaultCategories = [
+      {'id': _uuid.v4(), 'name': 'Groceries', 'color_hex': '#E1BEE7'},
+      {'id': _uuid.v4(), 'name': 'Food & Dining', 'color_hex': '#B2DFDB'},
+      {'id': _uuid.v4(), 'name': 'Travel & Transport', 'color_hex': '#FFCCBC'},
+      {'id': _uuid.v4(), 'name': 'Shopping & Retail', 'color_hex': '#F8BBD0'},
+      {'id': _uuid.v4(), 'name': 'Electronics', 'color_hex': '#FFF9C4'},
+      {'id': _uuid.v4(), 'name': 'Health & Pharmacy', 'color_hex': '#C8E6C9'},
+      {'id': _uuid.v4(), 'name': 'Home & Maintenance', 'color_hex': '#D7CCC8'},
+      {'id': _uuid.v4(), 'name': 'Entertainment', 'color_hex': '#BBDEFB'},
+      {'id': _uuid.v4(), 'name': 'Utility Bills', 'color_hex': '#B3E5FC'},
+      {'id': _uuid.v4(), 'name': 'Other', 'color_hex': '#CFD8DC'},
+    ];
+
+    for (var cat in defaultCategories) {
+      await db.insert('categories', cat);
+    }
+  }
+
+  // --- The Master Save Method ---
+  Future<void> saveReceiptFromGemini(Map<String, dynamic> data, String imagePath) async {
+    final db = await instance.database;
+
+    await db.transaction((txn) async {
+      
+      // 1. Helper function to find a Category ID by its name
+      Future<String?> getCategoryId(String categoryName) async {
+        final List<Map<String, dynamic>> maps = await txn.query(
+          'categories',
+          columns: ['id'],
+          where: 'name = ?',
+          whereArgs: [categoryName],
+        );
+        if (maps.isNotEmpty) {
+          return maps.first['id'] as String;
+        }
+        // Fallback to "Other" if AI makes a mistake
+        final otherMap = await txn.query('categories', columns: ['id'], where: 'name = ?', whereArgs: ['Other']);
+        return otherMap.isNotEmpty ? otherMap.first['id'] as String : null;
+      }
+
+      // 2. Insert the main Receipt
+      final String receiptId = _uuid.v4();
+      final String? masterCategoryId = await getCategoryId(data['receipt_category'] ?? 'Other');
+
+      await txn.insert('receipts', {
+        'id': receiptId,
+        'merchant_name': data['merchant_name'],
+        'purchase_date': data['date'], // Gemini returns YYYY-MM-DD
+        'total_amount': data['total_amount'],
+        'tax_amount': data['tax_amount'],
+        'category_id': masterCategoryId,
+        'image_path': imagePath,
+      });
+
+      // 3. Loop through and insert all Line Items
+      if (data['items'] != null && data['items'] is List) {
+        for (var item in data['items']) {
+          final String itemId = _uuid.v4();
+          final String? itemCategoryId = await getCategoryId(item['category'] ?? 'Other');
+
+          await txn.insert('line_items', {
+            'id': itemId,
+            'receipt_id': receiptId,
+            'item_name': item['item_name'],
+            'price': item['price'],
+            'category_id': itemCategoryId,
+          });
+        }
+      }
+    });
   }
 }
