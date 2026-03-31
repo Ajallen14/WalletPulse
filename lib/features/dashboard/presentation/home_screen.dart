@@ -12,10 +12,8 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardState = ref.watch(dashboardProvider);
 
-    if (dashboardState.isLoading && dashboardState.receipts.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFE0F7FA)),
-      );
+    if (dashboardState.isLoading && dashboardState.allReceipts.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFFE0F7FA)));
     }
 
     return SafeArea(
@@ -31,28 +29,26 @@ class HomeScreen extends ConsumerWidget {
             children: [
               _buildTopBar(),
               const SizedBox(height: 30),
-              _buildSpendingSummary(dashboardState.totalSpentThisMonth),
+              // Pass the ref and state down to handle the dropdown logic
+              _buildSpendingSummary(dashboardState, ref),
               const SizedBox(height: 30),
               _buildChartSection(dashboardState),
               const SizedBox(height: 40),
-              const Text(
-                'Recent Receipts',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              Text(
+                dashboardState.currentFilter == ExpenseFilter.today ? 'Receipts Today' : 'Recent Receipts',
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-
-              // List of scanned receipts
-              if (dashboardState.receipts.isEmpty)
-                const Center(
+              
+              if (dashboardState.filteredReceipts.isEmpty)
+                Center(
                   child: Padding(
-                    padding: EdgeInsets.only(top: 20),
+                    padding: const EdgeInsets.only(top: 20),
                     child: Text(
-                      'No receipts yet. Tap the scanner to begin!',
-                      style: TextStyle(color: Colors.white54),
+                      dashboardState.currentFilter == ExpenseFilter.today 
+                        ? 'No expenses logged today. Tap the scanner!'
+                        : 'No receipts this month. Tap the scanner!', 
+                      style: const TextStyle(color: Colors.white54)
                     ),
                   ),
                 )
@@ -60,17 +56,16 @@ class HomeScreen extends ConsumerWidget {
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: dashboardState.receipts.length,
+                  // CHANGED: We now use the filtered list!
+                  itemCount: dashboardState.filteredReceipts.length,
                   itemBuilder: (context, index) {
-                    final receipt = dashboardState.receipts[index];
+                    final receipt = dashboardState.filteredReceipts[index];
+                    
                     final rawDate = DateTime.parse(receipt['purchase_date']);
-                    final formattedDate = DateFormat(
-                      'dd-MM-yyyy',
-                    ).format(rawDate);
-                    final formattedAmount = NumberFormat.currency(
-                      symbol: '₹',
-                      decimalDigits: 2,
-                    ).format(receipt['total_amount']);
+                    final formattedDate = DateFormat('dd-MM-yyyy').format(rawDate);
+                    
+                    final formattedAmount = NumberFormat.currency(symbol: '₹', decimalDigits: 2)
+                        .format(receipt['total_amount']);
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
@@ -83,7 +78,7 @@ class HomeScreen extends ConsumerWidget {
                     );
                   },
                 ),
-              const SizedBox(height: 80),
+                const SizedBox(height: 80),
             ],
           ),
         ),
@@ -97,11 +92,7 @@ class HomeScreen extends ConsumerWidget {
       children: [
         const Text(
           'Overview',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
         ),
         _buildGlassContainer(
           padding: const EdgeInsets.all(8),
@@ -111,23 +102,47 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSpendingSummary(double totalSpent) {
-    final formattedTotal = NumberFormat.currency(
-      symbol: '₹',
-      decimalDigits: 2,
-    ).format(totalSpent);
-
+  Widget _buildSpendingSummary(DashboardState state, WidgetRef ref) {
+    final formattedTotal = NumberFormat.currency(symbol: '₹', decimalDigits: 2).format(state.totalSpent);
+    final filterText = state.currentFilter == ExpenseFilter.today ? 'Today' : 'This Month';
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildGlassContainer(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: const [
-              Text('This Month', style: TextStyle(color: Colors.white)),
-              SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
+        // NEW: The interactive Dropdown wrapped around our glass UI
+        Theme(
+          data: ThemeData(
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+          ),
+          child: PopupMenuButton<ExpenseFilter>(
+            initialValue: state.currentFilter,
+            color: const Color(0xFF262628), // Dark menu background
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            offset: const Offset(0, 45), // Drops down right below the button
+            onSelected: (ExpenseFilter filter) {
+              ref.read(dashboardProvider.notifier).setFilter(filter);
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<ExpenseFilter>>[
+              const PopupMenuItem<ExpenseFilter>(
+                value: ExpenseFilter.thisMonth,
+                child: Text('This Month', style: TextStyle(color: Colors.white)),
+              ),
+              const PopupMenuItem<ExpenseFilter>(
+                value: ExpenseFilter.today,
+                child: Text('Today', style: TextStyle(color: Colors.white)),
+              ),
             ],
+            child: _buildGlassContainer(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Text(filterText, style: const TextStyle(color: Colors.white)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
+                ],
+              ),
+            ),
           ),
         ),
         RichText(
@@ -137,11 +152,7 @@ class HomeScreen extends ConsumerWidget {
             children: [
               TextSpan(
                 text: formattedTotal,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -151,32 +162,17 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildChartSection(DashboardState state) {
-    final formattedTotal = NumberFormat.currency(
-      symbol: '₹',
-      decimalDigits: 0,
-    ).format(state.totalSpentThisMonth);
-
-    // Pie chart sections based on  SQLite
+    final formattedTotal = NumberFormat.currency(symbol: '₹', decimalDigits: 0).format(state.totalSpent);
+    final subtitleText = state.currentFilter == ExpenseFilter.today ? 'Total today' : 'Total this month';
+    
     List<PieChartSectionData> sections = [];
     if (state.categoryTotals.isEmpty) {
-      sections.add(
-        PieChartSectionData(
-          color: Colors.white12,
-          value: 1,
-          radius: 15,
-          showTitle: false,
-        ),
-      );
+      sections.add(PieChartSectionData(color: Colors.white12, value: 1, radius: 15, showTitle: false));
     } else {
       state.categoryTotals.forEach((category, amount) {
         final style = _getCategoryStyling(category);
         sections.add(
-          PieChartSectionData(
-            color: style['color'],
-            value: amount,
-            radius: 15,
-            showTitle: false,
-          ),
+          PieChartSectionData(color: style['color'], value: amount, radius: 15, showTitle: false),
         );
       });
     }
@@ -197,19 +193,9 @@ class HomeScreen extends ConsumerWidget {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                formattedTotal,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(formattedTotal, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              const Text(
-                'Total this month',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-              ),
+              Text(subtitleText, style: const TextStyle(color: Colors.white54, fontSize: 12)),
             ],
           ),
         ],
@@ -219,54 +205,17 @@ class HomeScreen extends ConsumerWidget {
 
   Map<String, dynamic> _getCategoryStyling(String category) {
     switch (category) {
-      case 'Groceries':
-        return {
-          'icon': Icons.local_grocery_store_outlined,
-          'color': const Color(0xFFE1BEE7),
-        };
-      case 'Food & Dining':
-        return {
-          'icon': Icons.restaurant_outlined,
-          'color': const Color(0xFFB2DFDB),
-        };
-      case 'Travel & Transport':
-        return {
-          'icon': Icons.directions_car_outlined,
-          'color': const Color(0xFFFFCCBC),
-        };
-      case 'Shopping & Retail':
-        return {
-          'icon': Icons.shopping_bag_outlined,
-          'color': const Color(0xFFF8BBD0),
-        };
-      case 'Electronics':
-        return {
-          'icon': Icons.devices_other_outlined,
-          'color': const Color(0xFFFFF9C4),
-        };
-      case 'Health & Pharmacy':
-        return {
-          'icon': Icons.medical_services_outlined,
-          'color': const Color(0xFFC8E6C9),
-        };
-      case 'Home & Maintenance':
-        return {
-          'icon': Icons.home_repair_service_outlined,
-          'color': const Color(0xFFD7CCC8),
-        };
-      case 'Entertainment':
-        return {
-          'icon': Icons.sports_esports_outlined,
-          'color': const Color(0xFFBBDEFB),
-        };
-      case 'Utility Bills':
-        return {'icon': Icons.bolt_outlined, 'color': const Color(0xFFB3E5FC)};
+      case 'Groceries': return {'icon': Icons.local_grocery_store_outlined, 'color': const Color(0xFFE1BEE7)};
+      case 'Food & Dining': return {'icon': Icons.restaurant_outlined, 'color': const Color(0xFFB2DFDB)};
+      case 'Travel & Transport': return {'icon': Icons.directions_car_outlined, 'color': const Color(0xFFFFCCBC)};
+      case 'Shopping & Retail': return {'icon': Icons.shopping_bag_outlined, 'color': const Color(0xFFF8BBD0)};
+      case 'Electronics': return {'icon': Icons.devices_other_outlined, 'color': const Color(0xFFFFF9C4)};
+      case 'Health & Pharmacy': return {'icon': Icons.medical_services_outlined, 'color': const Color(0xFFC8E6C9)};
+      case 'Home & Maintenance': return {'icon': Icons.home_repair_service_outlined, 'color': const Color(0xFFD7CCC8)};
+      case 'Entertainment': return {'icon': Icons.sports_esports_outlined, 'color': const Color(0xFFBBDEFB)};
+      case 'Utility Bills': return {'icon': Icons.bolt_outlined, 'color': const Color(0xFFB3E5FC)};
       case 'Other':
-      default:
-        return {
-          'icon': Icons.receipt_long_outlined,
-          'color': const Color(0xFFCFD8DC),
-        };
+      default: return {'icon': Icons.receipt_long_outlined, 'color': const Color(0xFFCFD8DC)};
     }
   }
 
@@ -295,40 +244,18 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  merchantName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(merchantName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
-                Text(
-                  category,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                ),
+                Text(category, style: const TextStyle(color: Colors.white54, fontSize: 13)),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                totalAmount,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(totalAmount, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              Text(
-                date,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
+              Text(date, style: const TextStyle(color: Colors.white54, fontSize: 12)),
             ],
           ),
         ],
@@ -336,10 +263,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildGlassContainer({
-    required Widget child,
-    required EdgeInsets padding,
-  }) {
+  Widget _buildGlassContainer({required Widget child, required EdgeInsets padding}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),

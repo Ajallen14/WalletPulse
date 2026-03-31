@@ -1,34 +1,52 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/database_helper.dart';
 
-// 1. Simple class to hold all our calculated dashboard data
+enum ExpenseFilter { today, thisMonth }
+
 class DashboardState {
-  final List<Map<String, dynamic>> receipts;
-  final double totalSpentThisMonth;
+  final List<Map<String, dynamic>> allReceipts;
+  final List<Map<String, dynamic>> filteredReceipts;
+  final double totalSpent;
   final Map<String, double> categoryTotals;
   final bool isLoading;
+  final ExpenseFilter currentFilter;
 
   DashboardState({
-    this.receipts = const [],
-    this.totalSpentThisMonth = 0.0,
+    this.allReceipts = const [],
+    this.filteredReceipts = const [],
+    this.totalSpent = 0.0,
     this.categoryTotals = const {},
     this.isLoading = true,
+    this.currentFilter = ExpenseFilter.thisMonth, // Default to This Month
   });
 }
 
-// 2. Notifier that fetches and processes the SQLite data
 class ReceiptNotifier extends StateNotifier<DashboardState> {
   ReceiptNotifier() : super(DashboardState()) {
     refreshData();
   }
 
   Future<void> refreshData() async {
-    state = DashboardState(isLoading: true, receipts: state.receipts);
+    // Keep current filter while showing loading state
+    state = DashboardState(
+      isLoading: true,
+      allReceipts: state.allReceipts,
+      filteredReceipts: state.filteredReceipts,
+      currentFilter: state.currentFilter,
+    );
 
     final rawReceipts = await DatabaseHelper.instance.getAllReceipts();
-    
-    double monthlyTotal = 0.0;
+    _applyFilter(rawReceipts, state.currentFilter);
+  }
+
+  void setFilter(ExpenseFilter newFilter) {
+    _applyFilter(state.allReceipts, newFilter);
+  }
+
+  void _applyFilter(List<Map<String, dynamic>> rawReceipts, ExpenseFilter filter) {
+    double total = 0.0;
     Map<String, double> catTotals = {};
+    List<Map<String, dynamic>> filteredList = [];
 
     final now = DateTime.now();
 
@@ -37,8 +55,23 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
       final amount = receipt['total_amount'] as double;
       final category = receipt['category_name'] ?? 'Other';
 
-      if (date.month == now.month && date.year == now.year) {
-        monthlyTotal += amount;
+      bool include = false;
+
+      // Determine if this receipt matches the active filter
+      if (filter == ExpenseFilter.thisMonth) {
+        if (date.month == now.month && date.year == now.year) {
+          include = true;
+        }
+      } else if (filter == ExpenseFilter.today) {
+        if (date.year == now.year && date.month == now.month && date.day == now.day) {
+          include = true;
+        }
+      }
+
+      // If it matches, add it to our totals and our filtered list
+      if (include) {
+        filteredList.add(receipt);
+        total += amount;
         
         if (catTotals.containsKey(category)) {
           catTotals[category] = catTotals[category]! + amount;
@@ -49,10 +82,12 @@ class ReceiptNotifier extends StateNotifier<DashboardState> {
     }
 
     state = DashboardState(
-      receipts: rawReceipts,
-      totalSpentThisMonth: monthlyTotal,
+      allReceipts: rawReceipts,
+      filteredReceipts: filteredList,
+      totalSpent: total,
       categoryTotals: catTotals,
       isLoading: false,
+      currentFilter: filter,
     );
   }
 }
