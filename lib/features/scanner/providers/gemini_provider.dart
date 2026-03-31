@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
-// IMPORTANT: Never hardcode your API key in production. 
-// For now, replace this with your actual Gemini API Key from Google AI Studio.
-const String _apiKey = 'YOUR_GEMINI_API_KEY_HERE'; 
+const String _apiKey = 'AIzaSyAN9fYCRKIQJUq5AXM5SQH1Fz_w06iyczM';
 
 final geminiProvider = Provider<GeminiScanner>((ref) {
   return GeminiScanner();
@@ -16,11 +14,9 @@ class GeminiScanner {
 
   GeminiScanner() {
     _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       apiKey: _apiKey,
-      generationConfig: GenerationConfig(
-        temperature: 0.1, // Low temperature forces the AI to be more factual and less creative
-      ),
+      generationConfig: GenerationConfig(temperature: 0.1),
     );
   }
 
@@ -45,12 +41,12 @@ The JSON MUST have the following exact keys and types:
 CRITICAL INSTRUCTION: For both "receipt_category" and the "category" inside "items", you MUST choose exactly one of the following strings. Do not invent new categories:
 ["Groceries", "Food & Dining", "Travel & Transport", "Shopping & Retail", "Electronics", "Health & Pharmacy", "Home & Maintenance", "Entertainment", "Utility Bills", "Other"]
 ''');
-      
+
       final imagePart = DataPart('image/jpeg', imageBytes);
 
       // Send the prompt and image to Gemini
       final response = await _model.generateContent([
-        Content.multi([prompt, imagePart])
+        Content.multi([prompt, imagePart]),
       ]);
 
       final rawText = response.text;
@@ -69,7 +65,6 @@ CRITICAL INSTRUCTION: For both "receipt_category" and the "category" inside "ite
       // Parse the JSON string into a Dart Map
       final Map<String, dynamic> parsedData = jsonDecode(cleanedJson.trim());
       return parsedData;
-
     } catch (e) {
       throw Exception("Failed to process receipt: $e");
     }

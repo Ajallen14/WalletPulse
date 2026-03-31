@@ -1,7 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:wallet_pulse/features/dashboard/presentation/camera_screen.dart';
+import 'package:wallet_pulse/features/scanner/presentation/camera_screen.dart';
 import 'home_screen.dart';
+
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
