@@ -5,8 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/gemini_provider.dart';
 import '../../../core/widgets/processing_overlay.dart';
-import '../../../core/database/database_helper.dart';
-import '../../dashboard/providers/receipt_provider.dart';
+import 'receipt_preview_screen.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
   const CameraScreen({super.key});
@@ -96,25 +95,16 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       debugPrint('========== AI EXTRACTION SUCCESS ==========');
       debugPrint(extractedData.toString());
 
-      // 3. Save directly to SQLite
-      await DatabaseHelper.instance.saveReceiptFromGemini(
-        extractedData,
-        imageFile.path,
-      );
-
-      // 4. Tell the dashboard to reload the data
-      await ref.read(dashboardProvider.notifier).refreshData();
-
-      debugPrint('========== SAVED TO DATABASE ==========');
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Receipt saved successfully!'),
-            backgroundColor: Colors.teal,
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReceiptPreviewScreen(
+              initialData: extractedData,
+              imagePath: imageFile.path,
+            ),
           ),
         );
-        Navigator.pop(context);
       }
     } catch (e) {
       debugPrint('AI Error: $e');

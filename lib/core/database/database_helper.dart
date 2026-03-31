@@ -36,6 +36,7 @@ class DatabaseHelper {
   }
 
   Future _onCreate(Database db, int version) async {
+    // 1. Create categories FIRST so other tables can reference it
     await db.execute('''
       CREATE TABLE categories (
           id TEXT PRIMARY KEY,
@@ -44,6 +45,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // 2. Create receipts
     await db.execute('''
       CREATE TABLE receipts (
           id TEXT PRIMARY KEY,
@@ -59,11 +61,13 @@ class DatabaseHelper {
       )
     ''');
 
+    // 3. Create line_items WITH the quantity column
     await db.execute('''
       CREATE TABLE line_items (
           id TEXT PRIMARY KEY,
           receipt_id TEXT NOT NULL,
           item_name TEXT NOT NULL,
+          quantity INTEGER DEFAULT 1,
           price REAL NOT NULL,
           category_id TEXT,
           FOREIGN KEY (receipt_id) REFERENCES receipts (id) ON DELETE CASCADE,
@@ -71,6 +75,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // 4. Create splits table
     await db.execute('''
       CREATE TABLE line_item_splits (
           id TEXT PRIMARY KEY,
@@ -169,6 +174,7 @@ class DatabaseHelper {
             'id': itemId,
             'receipt_id': receiptId,
             'item_name': item['item_name'],
+            'quantity': item['quantity'] ?? 1,
             'price': item['price'],
             'category_id': itemCategoryId,
           });
@@ -201,9 +207,9 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getLineItems(String receiptId) async {
     final db = await instance.database;
     return await db.query(
-      'line_items', 
-      where: 'receipt_id = ?', 
-      whereArgs: [receiptId]
+      'line_items',
+      where: 'receipt_id = ?',
+      whereArgs: [receiptId],
     );
   }
 }

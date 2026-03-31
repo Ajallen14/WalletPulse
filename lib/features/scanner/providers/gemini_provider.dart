@@ -42,7 +42,8 @@ The JSON MUST have the following exact keys and types:
 - "receipt_category": string
 - "items": array of objects, each containing:
   - "item_name": string
-  - "price": double
+  - "quantity": int
+  - "price": double (This should be the total amount for that line item, e.g., Qty * Rate)
   - "category": string
 
 CRITICAL INSTRUCTION: For both "receipt_category" and the "category" inside "items", you MUST choose exactly one of the following strings. Do not invent new categories:
@@ -51,7 +52,6 @@ CRITICAL INSTRUCTION: For both "receipt_category" and the "category" inside "ite
 
       final imagePart = DataPart('image/jpeg', imageBytes);
 
-      // Send the prompt and image to Gemini
       final response = await _model.generateContent([
         Content.multi([prompt, imagePart]),
       ]);
@@ -62,14 +62,12 @@ CRITICAL INSTRUCTION: For both "receipt_category" and the "category" inside "ite
         throw Exception("Gemini returned an empty response.");
       }
 
-      // Clean the string just in case Gemini ignored the "no markdown" instruction
       String cleanedJson = rawText.trim();
       if (cleanedJson.startsWith('```json')) {
         cleanedJson = cleanedJson.replaceAll('```json', '');
         cleanedJson = cleanedJson.replaceAll('```', '');
       }
 
-      // Parse the JSON string into a Dart Map
       final Map<String, dynamic> parsedData = jsonDecode(cleanedJson.trim());
       return parsedData;
     } catch (e) {
