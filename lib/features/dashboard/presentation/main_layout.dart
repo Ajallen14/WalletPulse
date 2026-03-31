@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:wallet_pulse/features/splits/presentation/splits_screen.dart';
 import 'home_screen.dart';
 import '../../scanner/presentation/camera_screen.dart';
 import '../../scanner/presentation/manual_entry_screen.dart';
@@ -15,15 +16,7 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const Center(
-      child: Text(
-        'Splits Screen',
-        style: TextStyle(color: Colors.white, fontSize: 24),
-      ),
-    ),
-  ];
+  final List<Widget> _screens = [const HomeScreen(), const SplitsScreen()];
 
   @override
   Widget build(BuildContext context) {

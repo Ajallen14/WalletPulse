@@ -196,4 +196,14 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.delete('receipts', where: 'id = ?', whereArgs: [id]);
   }
+
+  // Fetch Line Items for a specific Receipt
+  Future<List<Map<String, dynamic>>> getLineItems(String receiptId) async {
+    final db = await instance.database;
+    return await db.query(
+      'line_items', 
+      where: 'receipt_id = ?', 
+      whereArgs: [receiptId]
+    );
+  }
 }
