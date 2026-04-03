@@ -4,12 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../providers/receipt_provider.dart';
+import 'widgets/budget_section.dart';
+import 'widgets/receipt_list_item.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  Widget build(BuildContext context) {
     final dashboardState = ref.watch(dashboardProvider);
 
     if (dashboardState.isLoading && dashboardState.allReceipts.isEmpty) {
@@ -19,12 +26,15 @@ class HomeScreen extends ConsumerWidget {
     }
 
     String listTitle = 'Recent Receipts';
-    if (dashboardState.currentFilter == ExpenseFilter.today)
+    if (dashboardState.currentFilter == ExpenseFilter.today) {
       listTitle = 'Receipts Today';
-    if (dashboardState.currentFilter == ExpenseFilter.lastMonth)
+    }
+    if (dashboardState.currentFilter == ExpenseFilter.lastMonth) {
       listTitle = 'Last Month\'s Receipts';
-    if (dashboardState.currentFilter == ExpenseFilter.allTime)
+    }
+    if (dashboardState.currentFilter == ExpenseFilter.allTime) {
       listTitle = 'All Receipts';
+    }
 
     String emptyText = '';
     switch (dashboardState.currentFilter) {
@@ -46,7 +56,10 @@ class HomeScreen extends ConsumerWidget {
       child: RefreshIndicator(
         color: const Color(0xFFE0F7FA),
         backgroundColor: const Color(0xFF2C2C2E),
-        onRefresh: () => ref.read(dashboardProvider.notifier).refreshData(),
+        onRefresh: () async {
+          ref.read(dashboardProvider.notifier).refreshData();
+          setState(() {});
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20.0),
@@ -55,9 +68,14 @@ class HomeScreen extends ConsumerWidget {
             children: [
               _buildTopBar(),
               const SizedBox(height: 30),
+
               _buildSpendingSummary(dashboardState, ref),
               const SizedBox(height: 30),
+
               _buildChartSection(dashboardState),
+              const SizedBox(height: 40),
+
+              BudgetSection(categoryTotals: dashboardState.categoryTotals),
               const SizedBox(height: 40),
 
               AnimatedSwitcher(
@@ -151,7 +169,7 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                 );
                               },
-                              child: _buildReceiptCard(
+                              child: ReceiptListItem(
                                 merchantName: receipt['merchant_name'],
                                 category: receipt['category_name'] ?? 'Other',
                                 date: formattedDate,
@@ -171,17 +189,17 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildTopBar() {
-    return Row(
+    return const Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'Overview',
           style: TextStyle(
             color: Colors.white,
             fontSize: 28,
             fontWeight: FontWeight.bold,
           ),
-        )
+        ),
       ],
     );
   }
@@ -218,9 +236,8 @@ class HomeScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             offset: const Offset(0, 45),
-            onSelected: (ExpenseFilter filter) {
-              ref.read(dashboardProvider.notifier).setFilter(filter);
-            },
+            onSelected: (ExpenseFilter filter) =>
+                ref.read(dashboardProvider.notifier).setFilter(filter),
             itemBuilder: (BuildContext context) =>
                 <PopupMenuEntry<ExpenseFilter>>[
                   const PopupMenuItem<ExpenseFilter>(
@@ -266,7 +283,6 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ),
-
         Row(
           children: [
             const Text(
@@ -327,10 +343,39 @@ class HomeScreen extends ConsumerWidget {
       );
     } else {
       state.categoryTotals.forEach((category, amount) {
-        final style = _getCategoryStyling(category);
+        Color sliceColor = const Color(0xFFCFD8DC);
+        switch (category) {
+          case 'Groceries':
+            sliceColor = const Color(0xFFE1BEE7);
+            break;
+          case 'Food & Dining':
+            sliceColor = const Color(0xFFB2DFDB);
+            break;
+          case 'Travel & Transport':
+            sliceColor = const Color(0xFFFFCCBC);
+            break;
+          case 'Shopping & Retail':
+            sliceColor = const Color(0xFFF8BBD0);
+            break;
+          case 'Electronics':
+            sliceColor = const Color(0xFFFFF9C4);
+            break;
+          case 'Health & Pharmacy':
+            sliceColor = const Color(0xFFC8E6C9);
+            break;
+          case 'Home & Maintenance':
+            sliceColor = const Color(0xFFD7CCC8);
+            break;
+          case 'Entertainment':
+            sliceColor = const Color(0xFFBBDEFB);
+            break;
+          case 'Utility Bills':
+            sliceColor = const Color(0xFFB3E5FC);
+            break;
+        }
         sections.add(
           PieChartSectionData(
-            color: style['color'],
+            color: sliceColor,
             value: amount,
             radius: 15,
             showTitle: false,
@@ -384,125 +429,6 @@ class HomeScreen extends ConsumerWidget {
                   key: ValueKey(subtitleText),
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Map<String, dynamic> _getCategoryStyling(String category) {
-    switch (category) {
-      case 'Groceries':
-        return {
-          'icon': Icons.local_grocery_store_outlined,
-          'color': const Color(0xFFE1BEE7),
-        };
-      case 'Food & Dining':
-        return {
-          'icon': Icons.restaurant_outlined,
-          'color': const Color(0xFFB2DFDB),
-        };
-      case 'Travel & Transport':
-        return {
-          'icon': Icons.directions_car_outlined,
-          'color': const Color(0xFFFFCCBC),
-        };
-      case 'Shopping & Retail':
-        return {
-          'icon': Icons.shopping_bag_outlined,
-          'color': const Color(0xFFF8BBD0),
-        };
-      case 'Electronics':
-        return {
-          'icon': Icons.devices_other_outlined,
-          'color': const Color(0xFFFFF9C4),
-        };
-      case 'Health & Pharmacy':
-        return {
-          'icon': Icons.medical_services_outlined,
-          'color': const Color(0xFFC8E6C9),
-        };
-      case 'Home & Maintenance':
-        return {
-          'icon': Icons.home_repair_service_outlined,
-          'color': const Color(0xFFD7CCC8),
-        };
-      case 'Entertainment':
-        return {
-          'icon': Icons.sports_esports_outlined,
-          'color': const Color(0xFFBBDEFB),
-        };
-      case 'Utility Bills':
-        return {'icon': Icons.bolt_outlined, 'color': const Color(0xFFB3E5FC)};
-      case 'Other':
-      default:
-        return {
-          'icon': Icons.receipt_long_outlined,
-          'color': const Color(0xFFCFD8DC),
-        };
-    }
-  }
-
-  Widget _buildReceiptCard({
-    required String merchantName,
-    required String category,
-    required String date,
-    required String totalAmount,
-  }) {
-    final style = _getCategoryStyling(category);
-
-    return _buildGlassContainer(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: style['color'],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(style['icon'], color: Colors.black87, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  merchantName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  category,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                totalAmount,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                date,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
             ],
           ),
