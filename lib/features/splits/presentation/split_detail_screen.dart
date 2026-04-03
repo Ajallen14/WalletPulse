@@ -75,10 +75,14 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
     final itemId = item['id'];
     final assignedTo = _itemAssignments[itemId]!;
 
-    if (!assignedTo.contains(person)) return 0.0;
-
     final int totalQty = (item['quantity'] as num?)?.toInt() ?? 1;
     final double totalPrice = (item['price'] as num).toDouble();
+
+    if (assignedTo.isEmpty) {
+      return totalPrice / widget.friends.length;
+    }
+
+    if (!assignedTo.contains(person)) return 0.0;
 
     if (totalQty <= 1) return totalPrice / assignedTo.length;
 
@@ -89,7 +93,7 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
 
     final double unitPrice = totalPrice / totalQty;
     final int myAllocated = allocations[person] ?? 0;
-    
+
     double owed = (myAllocated * unitPrice).toDouble();
 
     final int remainderQty = totalQty - sumAllocated;
@@ -114,9 +118,11 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
 
     for (var item in _lineItems) {
       final assignedTo = _itemAssignments[item['id']]!;
-      if (assignedTo.isNotEmpty) {
-        for (var person in assignedTo) {
-          final owed = _calculateOwedForItem(item, person);
+      final peopleToCharge = assignedTo.isEmpty ? widget.friends : assignedTo;
+
+      for (var person in peopleToCharge) {
+        final owed = _calculateOwedForItem(item, person);
+        if (owed > 0) {
           splitsToSave.add({
             'line_item_id': item['id'],
             'user_name': person,
@@ -199,9 +205,7 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(
-                    width: 48,
-                  ),
+                  const SizedBox(width: 48),
                 ],
               ),
             ),

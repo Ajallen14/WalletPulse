@@ -126,7 +126,7 @@ class _BalancesScreenState extends State<BalancesScreen> {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Generating crisp receipt...'),
+          content: Text('Generating receipt...'),
           duration: Duration(seconds: 1),
         ),
       );
@@ -182,8 +182,9 @@ class _BalancesScreenState extends State<BalancesScreen> {
   }
 
   Widget _buildHiddenHistoryExport() {
-    if (_receiptToShare == null || _splitsToShare.isEmpty)
+    if (_receiptToShare == null || _splitsToShare.isEmpty) {
       return const SizedBox.shrink();
+    }
 
     Map<String, List<Map<String, dynamic>>> groupedSplits = {};
     Map<String, double> userTotals = {};
