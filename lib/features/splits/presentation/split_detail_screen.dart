@@ -1,14 +1,7 @@
-import 'dart:ui' as ui;
-import 'dart:typed_data';
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../core/database/database_helper.dart';
-import 'widgets/export_receipt_widget.dart';
 
 class SplitDetailScreen extends StatefulWidget {
   final Map<String, dynamic> receipt;
@@ -31,8 +24,6 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
 
   final Map<String, List<String>> _itemAssignments = {};
   final Map<String, Map<String, int>> _itemQtyAllocations = {};
-
-  final GlobalKey _receiptBoundaryKey = GlobalKey();
 
   @override
   void initState() {
@@ -98,7 +89,7 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
 
     final double unitPrice = totalPrice / totalQty;
     final int myAllocated = allocations[person] ?? 0;
-
+    
     double owed = (myAllocated * unitPrice).toDouble();
 
     final int remainderQty = totalQty - sumAllocated;
@@ -117,52 +108,8 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
     return total;
   }
 
-  Future<void> _shareReceiptImage() async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Generating crisp receipt...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      RenderRepaintBoundary boundary =
-          _receiptBoundaryKey.currentContext!.findRenderObject()
-              as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-
-      ByteData? byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-      Uint8List pngBytes = byteData!.buffer.asUint8List();
-
-      final directory = await getTemporaryDirectory();
-      final imagePath = await File(
-        '${directory.path}/walletpulse_split.png',
-      ).create();
-      await imagePath.writeAsBytes(pngBytes);
-
-      final merchant = widget.receipt['merchant_name'];
-      await Share.shareXFiles([
-        XFile(imagePath.path),
-      ], text: 'Here is the breakdown for $merchant');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sharing: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _saveSplits() async {
     setState(() => _isSaving = true);
-
     List<Map<String, dynamic>> splitsToSave = [];
 
     for (var item in _lineItems) {
@@ -216,404 +163,352 @@ class _SplitDetailScreenState extends State<SplitDetailScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      body: Stack(
-        children: [
-          Positioned(
-            top: -9999,
-            left: -9999,
-            child: RepaintBoundary(
-              key: _receiptBoundaryKey,
-              child: ExportReceiptWidget(
-                receipt: widget.receipt,
-                friends: widget.friends,
-                lineItems: _lineItems,
-                itemAssignments: _itemAssignments,
-                itemQtyAllocations: _itemQtyAllocations,
-              ),
-            ),
-          ),
-
-          Positioned.fill(
-            child: SafeArea(
-              child: Column(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Row(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Row(
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
+                        Text(
+                          widget.receipt['merchant_name'],
+                          style: const TextStyle(
                             color: Colors.white,
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                widget.receipt['merchant_name'],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                formattedTotal,
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.share_rounded,
-                            color: Color(0xFFE0F7FA),
+                        Text(
+                          formattedTotal,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 14,
                           ),
-                          onPressed: _shareReceiptImage,
                         ),
                       ],
                     ),
                   ),
-
-                  if (_isLoading)
-                    const Expanded(
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFF8BBD0),
-                        ),
-                      ),
-                    )
-                  else if (_lineItems.isEmpty)
-                    const Expanded(
-                      child: Center(
-                        child: Text(
-                          'No line items found.',
-                          style: TextStyle(color: Colors.white54),
-                        ),
-                      ),
-                    )
-                  else
-                    Expanded(
-                      child: ListView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: _lineItems.length,
-                        itemBuilder: (context, index) {
-                          final item = _lineItems[index];
-                          final itemId = item['id'];
-                          final price = NumberFormat.currency(
-                            symbol: '₹',
-                            decimalDigits: 2,
-                          ).format(item['price']);
-                          final qty = (item['quantity'] as num?)?.toInt() ?? 1;
-                          final assignedTo = _itemAssignments[itemId]!;
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _buildGlassContainer(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          '${qty}x  ${item['item_name']}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        price,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-
-                                  SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    physics: const BouncingScrollPhysics(),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: widget.friends.map((friend) {
-                                        final isSelected = assignedTo.contains(
-                                          friend,
-                                        );
-                                        final allocatedQty =
-                                            _itemQtyAllocations[itemId]?[friend] ??
-                                            0;
-
-                                        return GestureDetector(
-                                          onTap: () =>
-                                              _toggleAssignment(itemId, friend),
-                                          child: AnimatedContainer(
-                                            duration: const Duration(
-                                              milliseconds: 200,
-                                            ),
-                                            margin: const EdgeInsets.only(
-                                              right: 8,
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 12,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: isSelected
-                                                  ? const Color(0xFFF8BBD0)
-                                                  : Colors.white.withOpacity(
-                                                      0.05,
-                                                    ),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                              border: Border.all(
-                                                color: isSelected
-                                                    ? const Color(0xFFF8BBD0)
-                                                    : Colors.white.withOpacity(
-                                                        0.1,
-                                                      ),
-                                              ),
-                                            ),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  friend,
-                                                  style: TextStyle(
-                                                    color: isSelected
-                                                        ? Colors.black87
-                                                        : Colors.white54,
-                                                    fontWeight: isSelected
-                                                        ? FontWeight.bold
-                                                        : FontWeight.normal,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                if (isSelected && qty > 1) ...[
-                                                  const SizedBox(height: 8),
-                                                  Container(
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.black
-                                                          .withOpacity(0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            12,
-                                                          ),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        GestureDetector(
-                                                          onTap: () =>
-                                                              _adjustAllocation(
-                                                                itemId,
-                                                                friend,
-                                                                -1,
-                                                                qty,
-                                                              ),
-                                                          behavior:
-                                                              HitTestBehavior
-                                                                  .opaque,
-                                                          child: const Padding(
-                                                            padding:
-                                                                EdgeInsets.symmetric(
-                                                                  horizontal:
-                                                                      16,
-                                                                  vertical: 6,
-                                                                ),
-                                                            child: Text(
-                                                              '-',
-                                                              style: TextStyle(
-                                                                color: Colors
-                                                                    .black87,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 18,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        SizedBox(
-                                                          width: 16,
-                                                          child: Text(
-                                                            '$allocatedQty',
-                                                            textAlign: TextAlign
-                                                                .center,
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .black87,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize: 14,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                        GestureDetector(
-                                                          onTap: () =>
-                                                              _adjustAllocation(
-                                                                itemId,
-                                                                friend,
-                                                                1,
-                                                                qty,
-                                                              ),
-                                                          behavior:
-                                                              HitTestBehavior
-                                                                  .opaque,
-                                                          child: const Padding(
-                                                            padding:
-                                                                EdgeInsets.symmetric(
-                                                                  horizontal:
-                                                                      16,
-                                                                  vertical: 6,
-                                                                ),
-                                                            child: Text(
-                                                              '+',
-                                                              style: TextStyle(
-                                                                color: Colors
-                                                                    .black87,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 18,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(30),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.5),
-                          blurRadius: 20,
-                          offset: const Offset(0, -5),
-                        ),
-                      ],
-                    ),
-                    child: SafeArea(
-                      child: Column(
-                        children: [
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: widget.friends.map((friend) {
-                                final total = NumberFormat.currency(
-                                  symbol: '₹',
-                                  decimalDigits: 0,
-                                ).format(_calculateTotalFor(friend));
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        friend,
-                                        style: const TextStyle(
-                                          color: Colors.white54,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        total,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 55,
-                            child: ElevatedButton(
-                              onPressed: _isSaving ? null : _saveSplits,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFE0F7FA),
-                                foregroundColor: Colors.black87,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              child: _isSaving
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.black87,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Save Splits',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  const SizedBox(
+                    width: 48,
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+
+            if (_isLoading)
+              const Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFFF8BBD0)),
+                ),
+              )
+            else if (_lineItems.isEmpty)
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    'No line items found.',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: _lineItems.length,
+                  itemBuilder: (context, index) {
+                    final item = _lineItems[index];
+                    final itemId = item['id'];
+                    final price = NumberFormat.currency(
+                      symbol: '₹',
+                      decimalDigits: 2,
+                    ).format(item['price']);
+                    final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+                    final assignedTo = _itemAssignments[itemId]!;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildGlassContainer(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${qty}x  ${item['item_name']}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  price,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: widget.friends.map((friend) {
+                                  final isSelected = assignedTo.contains(
+                                    friend,
+                                  );
+                                  final allocatedQty =
+                                      _itemQtyAllocations[itemId]?[friend] ?? 0;
+
+                                  return GestureDetector(
+                                    onTap: () =>
+                                        _toggleAssignment(itemId, friend),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFFF8BBD0)
+                                            : Colors.white.withOpacity(0.05),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? const Color(0xFFF8BBD0)
+                                              : Colors.white.withOpacity(0.1),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            friend,
+                                            style: TextStyle(
+                                              color: isSelected
+                                                  ? Colors.black87
+                                                  : Colors.white54,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          if (isSelected && qty > 1) ...[
+                                            const SizedBox(height: 8),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(
+                                                  0.1,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  GestureDetector(
+                                                    onTap: () =>
+                                                        _adjustAllocation(
+                                                          itemId,
+                                                          friend,
+                                                          -1,
+                                                          qty,
+                                                        ),
+                                                    behavior:
+                                                        HitTestBehavior.opaque,
+                                                    child: const Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            horizontal: 16,
+                                                            vertical: 6,
+                                                          ),
+                                                      child: Text(
+                                                        '-',
+                                                        style: TextStyle(
+                                                          color: Colors.black87,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 18,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  SizedBox(
+                                                    width: 16,
+                                                    child: Text(
+                                                      '$allocatedQty',
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: const TextStyle(
+                                                        color: Colors.black87,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  GestureDetector(
+                                                    onTap: () =>
+                                                        _adjustAllocation(
+                                                          itemId,
+                                                          friend,
+                                                          1,
+                                                          qty,
+                                                        ),
+                                                    behavior:
+                                                        HitTestBehavior.opaque,
+                                                    child: const Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            horizontal: 16,
+                                                            vertical: 6,
+                                                          ),
+                                                      child: Text(
+                                                        '+',
+                                                        style: TextStyle(
+                                                          color: Colors.black87,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 18,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: widget.friends.map((friend) {
+                          final total = NumberFormat.currency(
+                            symbol: '₹',
+                            decimalDigits: 0,
+                          ).format(_calculateTotalFor(friend));
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Column(
+                              children: [
+                                Text(
+                                  friend,
+                                  style: const TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  total,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _saveSplits,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE0F7FA),
+                          foregroundColor: Colors.black87,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.black87,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Save Splits',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

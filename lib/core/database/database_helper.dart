@@ -217,6 +217,22 @@ class DatabaseHelper {
     ''');
   }
 
+  // Fetches the exact item breakdown for a saved bill so we can share it
+  Future<List<Map<String, dynamic>>> getSavedSplitsForReceipt(
+    String receiptId,
+  ) async {
+    final db = await instance.database;
+    return await db.rawQuery(
+      '''
+      SELECT s.user_name, s.owed_amount, l.item_name, l.quantity
+      FROM line_item_splits s
+      JOIN line_items l ON s.line_item_id = l.id
+      WHERE l.receipt_id = ?
+    ''',
+      [receiptId],
+    );
+  }
+
   Future<void> saveSplits(
     String receiptId,
     List<Map<String, dynamic>> splits,
@@ -268,13 +284,16 @@ class DatabaseHelper {
   // Mark a specific bill as paid for a specific friend
   Future<void> settleSpecificBill(String userName, String receiptId) async {
     final db = await instance.database;
-    await db.rawDelete('''
+    await db.rawDelete(
+      '''
       DELETE FROM line_item_splits 
       WHERE LOWER(user_name) = ? 
       AND line_item_id IN (
         SELECT id FROM line_items WHERE receipt_id = ?
       )
-    ''', [userName.toLowerCase(), receiptId]);
+    ''',
+      [userName.toLowerCase(), receiptId],
+    );
   }
 
   Future<List<Map<String, dynamic>>> getSplitHistory() async {
