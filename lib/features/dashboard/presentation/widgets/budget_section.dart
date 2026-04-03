@@ -13,9 +13,37 @@ class BudgetSection extends StatefulWidget {
 }
 
 class _BudgetSectionState extends State<BudgetSection> {
-  void _showAddBudgetDialog() {
-    String selectedCategory = 'Groceries';
-    final limitController = TextEditingController();
+  Map<String, dynamic> _getCategoryStyling(String category) {
+    switch (category) {
+      case 'Groceries':
+        return {'color': const Color(0xFFE1BEE7)};
+      case 'Food & Dining':
+        return {'color': const Color(0xFFB2DFDB)};
+      case 'Travel & Transport':
+        return {'color': const Color(0xFFFFCCBC)};
+      case 'Shopping & Retail':
+        return {'color': const Color(0xFFF8BBD0)};
+      case 'Electronics':
+        return {'color': const Color(0xFFFFF9C4)};
+      case 'Health & Pharmacy':
+        return {'color': const Color(0xFFC8E6C9)};
+      case 'Home & Maintenance':
+        return {'color': const Color(0xFFD7CCC8)};
+      case 'Entertainment':
+        return {'color': const Color(0xFFBBDEFB)};
+      case 'Utility Bills':
+        return {'color': const Color(0xFFB3E5FC)};
+      case 'Other':
+      default:
+        return {'color': const Color(0xFFCFD8DC)};
+    }
+  }
+
+  void _showAddBudgetDialog({String? initialCategory, double? initialLimit}) {
+    String selectedCategory = initialCategory ?? 'Groceries';
+    final limitController = TextEditingController(
+      text: initialLimit != null ? initialLimit.toInt().toString() : '',
+    );
 
     showModalBottomSheet(
       context: context,
@@ -39,15 +67,18 @@ class _BudgetSectionState extends State<BudgetSection> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Set Monthly Budget',
-                    style: TextStyle(
+                  Text(
+                    initialCategory == null
+                        ? 'Set Monthly Budget'
+                        : 'Edit Budget',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 20),
+
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
@@ -67,10 +98,12 @@ class _BudgetSectionState extends State<BudgetSection> {
                           color: Colors.white,
                           fontSize: 16,
                         ),
-                        onChanged: (val) {
-                          if (val != null)
-                            setModalState(() => selectedCategory = val);
-                        },
+                        onChanged: initialCategory != null
+                            ? null
+                            : (val) {
+                                if (val != null)
+                                  setModalState(() => selectedCategory = val);
+                              },
                         items:
                             [
                                   'Groceries',
@@ -95,6 +128,7 @@ class _BudgetSectionState extends State<BudgetSection> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
                   TextField(
                     controller: limitController,
                     keyboardType: TextInputType.number,
@@ -111,6 +145,7 @@ class _BudgetSectionState extends State<BudgetSection> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
                   SizedBox(
                     width: double.infinity,
                     height: 55,
@@ -152,6 +187,19 @@ class _BudgetSectionState extends State<BudgetSection> {
         );
       },
     );
+  }
+
+  Future<void> _deleteBudget(String category) async {
+    await DatabaseHelper.instance.deleteBudget(category);
+    setState(() {});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$category budget removed'),
+          backgroundColor: Colors.teal,
+        ),
+      );
+    }
   }
 
   Widget _buildGlassContainer({
@@ -222,7 +270,7 @@ class _BudgetSectionState extends State<BudgetSection> {
                     color: Color(0xFFE0F7FA),
                     size: 32,
                   ),
-                  onPressed: _showAddBudgetDialog,
+                  onPressed: () => _showAddBudgetDialog(),
                 ),
               ],
             ),
@@ -249,7 +297,7 @@ class _BudgetSectionState extends State<BudgetSection> {
                     Icons.add_circle_outline,
                     color: Color(0xFFE0F7FA),
                   ),
-                  onPressed: _showAddBudgetDialog,
+                  onPressed: () => _showAddBudgetDialog(),
                 ),
               ],
             ),
@@ -261,11 +309,10 @@ class _BudgetSectionState extends State<BudgetSection> {
               final percent = (spent / limit);
               final clampedPercent = percent.clamp(0.0, 1.0);
 
-              Color barColor = const Color(0xFFE0F7FA);
-              if (percent >= 1.0)
-                barColor = Colors.redAccent;
-              else if (percent >= 0.9)
-                barColor = Colors.orangeAccent;
+              final Color categoryColor = _getCategoryStyling(
+                category,
+              )['color'];
+              final bool isOverBudget = percent >= 1.0;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
@@ -275,25 +322,68 @@ class _BudgetSectionState extends State<BudgetSection> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          category,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
+                        Expanded(
+                          child: Text(
+                            category,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                         Text(
                           '${NumberFormat.currency(symbol: '₹', decimalDigits: 0).format(spent)} / ${NumberFormat.currency(symbol: '₹', decimalDigits: 0).format(limit)}',
                           style: TextStyle(
-                            color: percent >= 1.0
+                            color: isOverBudget
                                 ? Colors.redAccent
                                 : Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(width: 8),
+
+                        PopupMenuButton<String>(
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white54,
+                            size: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          color: const Color(0xFF2C2C2E),
+                          elevation: 8,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _showAddBudgetDialog(
+                                initialCategory: category,
+                                initialLimit: limit,
+                              );
+                            } else if (value == 'delete') {
+                              _deleteBudget(category);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text(
+                                'Edit Limit',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text(
+                                'Delete Budget',
+                                style: TextStyle(color: Colors.redAccent),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+
                     LayoutBuilder(
                       builder: (context, constraints) {
                         return Stack(
@@ -312,11 +402,11 @@ class _BudgetSectionState extends State<BudgetSection> {
                               height: 8,
                               width: constraints.maxWidth * clampedPercent,
                               decoration: BoxDecoration(
-                                color: barColor,
+                                color: categoryColor,
                                 borderRadius: BorderRadius.circular(4),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: barColor.withOpacity(0.5),
+                                    color: categoryColor.withOpacity(0.4),
                                     blurRadius: 6,
                                   ),
                                 ],

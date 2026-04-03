@@ -325,4 +325,10 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.query('budgets');
   }
+
+  // BUDGET LOGIC
+  Future<void> deleteBudget(String categoryName) async {
+    final db = await instance.database;
+    await db.delete('budgets', where: 'category_name = ?', whereArgs: [categoryName]);
+  }
 }
