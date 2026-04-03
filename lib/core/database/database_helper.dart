@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 class DatabaseHelper {
-  static const _databaseName = "WalletPulse.db";
+  static const _databaseName = "Folia.db";
   static const _databaseVersion = 1;
   final _uuid = const Uuid();
 

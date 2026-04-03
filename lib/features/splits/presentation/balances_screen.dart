@@ -154,7 +154,7 @@ class _BalancesScreenState extends State<BalancesScreen> {
 
       final directory = await getTemporaryDirectory();
       final imagePath = await File(
-        '${directory.path}/walletpulse_history.png',
+        '${directory.path}/folia_history.png',
       ).create();
       await imagePath.writeAsBytes(pngBytes);
 
