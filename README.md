@@ -3,7 +3,6 @@
 <img src="https://raw.githubusercontent.com/Ajallen14/WalletPulse/main/assets/images/folia_logo.png" alt="FOLIA Logo" width="80" />
 
 # FOLIA
-> A modern, privacy-first financial command center and bill-splitting app.
 </div>
 
 [![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev/)
