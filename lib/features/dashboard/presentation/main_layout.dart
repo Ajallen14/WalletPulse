@@ -15,15 +15,36 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
+  late PageController _pageController;
 
   final List<Widget> _screens = [const HomeScreen(), const SplitsScreen()];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       extendBody: true,
-      body: _screens[_currentIndex],
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) {
+          setState(() => _currentIndex = index);
+        },
+        children: _screens,
+      ),
+
       floatingActionButton: const AnimatedGradientFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
@@ -58,7 +79,13 @@ class _MainLayoutState extends State<MainLayout> {
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+        );
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -173,7 +200,7 @@ class _AnimatedGradientFabState extends State<AnimatedGradientFab>
                       backgroundColor: const Color(0xFFF8BBD0),
                       elevation: 4,
                       onPressed: () {
-                        _toggle(); // Close menu
+                        _toggle();
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -190,8 +217,6 @@ class _AnimatedGradientFabState extends State<AnimatedGradientFab>
                 );
               },
             ),
-
-            // Right Popup Button (Camera Scan)
             AnimatedBuilder(
               animation: _expandAnimation,
               builder: (context, child) {

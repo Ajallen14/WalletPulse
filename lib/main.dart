@@ -11,20 +11,27 @@ void main() async {
 
   await DatabaseHelper.instance.database;
 
-  runApp(const ProviderScope(child: WalletPulseApp()));
+  runApp(const ProviderScope(child: FoliaApp()));
 }
 
-class WalletPulseApp extends StatelessWidget {
-  const WalletPulseApp({super.key});
+class FoliaApp extends StatelessWidget {
+  const FoliaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Folia',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-        useMaterial3: true,
+      title: 'FOLIA',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: <TargetPlatform, PageTransitionsBuilder>{
+            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          },
+        ),
       ),
+
       home: const SplashScreen(),
     );
   }
