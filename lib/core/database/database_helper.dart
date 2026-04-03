@@ -36,7 +36,7 @@ class DatabaseHelper {
   }
 
   Future _onCreate(Database db, int version) async {
-    // 1. Create categories FIRST so other tables can reference it
+    // 1. Categories
     await db.execute('''
       CREATE TABLE categories (
           id TEXT PRIMARY KEY,
@@ -45,7 +45,16 @@ class DatabaseHelper {
       )
     ''');
 
-    // 2. Create receipts
+    // Budgets Table
+    await db.execute('''
+      CREATE TABLE budgets (
+          id TEXT PRIMARY KEY,
+          category_name TEXT NOT NULL UNIQUE,
+          monthly_limit REAL NOT NULL
+      )
+    ''');
+
+    // CLEANED: Receipts
     await db.execute('''
       CREATE TABLE receipts (
           id TEXT PRIMARY KEY,
@@ -54,14 +63,11 @@ class DatabaseHelper {
           total_amount REAL NOT NULL,
           tax_amount REAL,
           category_id TEXT, 
-          image_path TEXT,
-          warranty_expiry_date TEXT,
-          is_synced INTEGER DEFAULT 0,
           FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET NULL
       )
     ''');
 
-    // 3. Create line_items WITH the quantity column
+    // Line Items
     await db.execute('''
       CREATE TABLE line_items (
           id TEXT PRIMARY KEY,
@@ -75,7 +81,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // 4. Create splits table
+    // Splits
     await db.execute('''
       CREATE TABLE line_item_splits (
           id TEXT PRIMARY KEY,
@@ -86,7 +92,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // Seed the 10 exact categories
+    // Seed Categories
     final defaultCategories = [
       {'id': _uuid.v4(), 'name': 'Groceries', 'color_hex': '#E1BEE7'},
       {'id': _uuid.v4(), 'name': 'Food & Dining', 'color_hex': '#B2DFDB'},
@@ -105,7 +111,7 @@ class DatabaseHelper {
     }
   }
 
-  // --- The Master Save Method ---
+  // RECEIPT LOGIC
   Future<void> saveReceiptFromGemini(
     Map<String, dynamic> data,
     String imagePath,
@@ -117,25 +123,20 @@ class DatabaseHelper {
         return inputDate;
       } catch (e) {
         final parts = inputDate.split(RegExp(r'[-/]'));
-        if (parts.length == 3) {
-          return '${parts[2]}-${parts[1]}-${parts[0]}';
-        }
+        if (parts.length == 3) return '${parts[2]}-${parts[1]}-${parts[0]}';
         return DateTime.now().toIso8601String().split('T')[0];
       }
     }
 
     await db.transaction((txn) async {
-      // 1. Helper function to find a Category ID by its name
       Future<String?> getCategoryId(String categoryName) async {
-        final List<Map<String, dynamic>> maps = await txn.query(
+        final maps = await txn.query(
           'categories',
           columns: ['id'],
           where: 'name = ?',
           whereArgs: [categoryName],
         );
-        if (maps.isNotEmpty) {
-          return maps.first['id'] as String;
-        }
+        if (maps.isNotEmpty) return maps.first['id'] as String;
         final otherMap = await txn.query(
           'categories',
           columns: ['id'],
@@ -145,7 +146,6 @@ class DatabaseHelper {
         return otherMap.isNotEmpty ? otherMap.first['id'] as String : null;
       }
 
-      // 2. Insert the main Receipt
       final String receiptId = _uuid.v4();
       final String? masterCategoryId = await getCategoryId(
         data['receipt_category'] ?? 'Other',
@@ -159,10 +159,8 @@ class DatabaseHelper {
         'total_amount': data['total_amount'],
         'tax_amount': data['tax_amount'],
         'category_id': masterCategoryId,
-        'image_path': imagePath,
       });
 
-      // 3. Loop through and insert all Line Items
       if (data['items'] != null && data['items'] is List) {
         for (var item in data['items']) {
           final String itemId = _uuid.v4();
@@ -183,27 +181,21 @@ class DatabaseHelper {
     });
   }
 
-  // Fetch All Receipts
   Future<List<Map<String, dynamic>>> getAllReceipts() async {
     final db = await instance.database;
-
     return await db.rawQuery('''
-      SELECT 
-        receipts.*, 
-        categories.name as category_name 
+      SELECT receipts.*, categories.name as category_name 
       FROM receipts
       LEFT JOIN categories ON receipts.category_id = categories.id
       ORDER BY receipts.purchase_date DESC
     ''');
   }
 
-  // Delete a Receipt
   Future<int> deleteReceipt(String id) async {
     final db = await instance.database;
     return await db.delete('receipts', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Fetch Line Items for a specific Receipt
   Future<List<Map<String, dynamic>>> getLineItems(String receiptId) async {
     final db = await instance.database;
     return await db.query(
@@ -213,28 +205,24 @@ class DatabaseHelper {
     );
   }
 
-  // Fetch only receipts that actually have line items
+  // SPLIT LOGIC
   Future<List<Map<String, dynamic>>> getReceiptsWithLineItems() async {
     final db = await instance.database;
     return await db.rawQuery('''
       SELECT r.*, c.name as category_name
       FROM receipts r
       LEFT JOIN categories c ON r.category_id = c.id
-      WHERE EXISTS (
-        SELECT 1 FROM line_items l WHERE l.receipt_id = r.id
-      )
+      WHERE EXISTS (SELECT 1 FROM line_items l WHERE l.receipt_id = r.id)
       ORDER BY r.purchase_date DESC
     ''');
   }
 
-  // Save Splits to the Database
   Future<void> saveSplits(
     String receiptId,
     List<Map<String, dynamic>> splits,
   ) async {
     final db = await instance.database;
     await db.transaction((txn) async {
-      // Clear any existing splits for this receipt so we don't duplicate
       await txn.rawDelete(
         '''
         DELETE FROM line_item_splits 
@@ -243,7 +231,6 @@ class DatabaseHelper {
         [receiptId],
       );
 
-      // Insert the new assignments
       for (var split in splits) {
         await txn.insert('line_item_splits', {
           'id': _uuid.v4(),
@@ -255,16 +242,10 @@ class DatabaseHelper {
     });
   }
 
-  // Get detailed balances grouped by person and bill
   Future<List<Map<String, dynamic>>> getDetailedBalances() async {
     final db = await instance.database;
     return await db.rawQuery('''
-      SELECT 
-        s.user_name,
-        SUM(s.owed_amount) as amount_owed_for_bill,
-        r.id as receipt_id,
-        r.merchant_name,
-        r.purchase_date
+      SELECT s.user_name, SUM(s.owed_amount) as amount_owed_for_bill, r.id as receipt_id, r.merchant_name, r.purchase_date
       FROM line_item_splits s
       JOIN line_items l ON s.line_item_id = l.id
       JOIN receipts r ON l.receipt_id = r.id
@@ -275,7 +256,6 @@ class DatabaseHelper {
     ''');
   }
 
-  // Mark a specific friend's debt as paid
   Future<void> settleBalance(String userName) async {
     final db = await instance.database;
     await db.delete(
@@ -285,7 +265,6 @@ class DatabaseHelper {
     );
   }
 
-  // Get the history of bills that have been split
   Future<List<Map<String, dynamic>>> getSplitHistory() async {
     final db = await instance.database;
     return await db.rawQuery('''
@@ -295,5 +274,24 @@ class DatabaseHelper {
       JOIN line_item_splits s ON l.id = s.line_item_id
       ORDER BY r.purchase_date DESC
     ''');
+  }
+
+  // BUDGET LOGIC
+  Future<void> setBudget(String categoryName, double limit) async {
+    final db = await instance.database;
+
+    await db.rawInsert(
+      '''
+      INSERT INTO budgets (id, category_name, monthly_limit)
+      VALUES (?, ?, ?)
+      ON CONFLICT(category_name) DO UPDATE SET monthly_limit = excluded.monthly_limit
+    ''',
+      [_uuid.v4(), categoryName, limit],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getBudgets() async {
+    final db = await instance.database;
+    return await db.query('budgets');
   }
 }

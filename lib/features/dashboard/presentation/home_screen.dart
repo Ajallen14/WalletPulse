@@ -181,11 +181,7 @@ class HomeScreen extends ConsumerWidget {
             fontSize: 28,
             fontWeight: FontWeight.bold,
           ),
-        ),
-        _buildGlassContainer(
-          padding: const EdgeInsets.all(8),
-          child: const Icon(Icons.notifications_none, color: Colors.white),
-        ),
+        )
       ],
     );
   }
