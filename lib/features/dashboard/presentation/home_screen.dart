@@ -52,136 +52,139 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         break;
     }
 
-    return SafeArea(
-      child: RefreshIndicator(
-        color: const Color(0xFFE0F7FA),
-        backgroundColor: const Color(0xFF2C2C2E),
-        onRefresh: () async {
-          ref.read(dashboardProvider.notifier).refreshData();
-          setState(() {});
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTopBar(),
-              const SizedBox(height: 30),
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: const Color(0xFFE0F7FA),
+          backgroundColor: const Color(0xFF2C2C2E),
+          onRefresh: () async {
+            ref.read(dashboardProvider.notifier).refreshData();
+            setState(() {});
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTopBar(),
+                const SizedBox(height: 30),
 
-              _buildSpendingSummary(dashboardState, ref),
-              const SizedBox(height: 30),
+                _buildSpendingSummary(dashboardState, ref),
+                const SizedBox(height: 30),
 
-              _buildChartSection(dashboardState),
-              const SizedBox(height: 40),
+                _buildChartSection(dashboardState),
+                const SizedBox(height: 40),
 
-              BudgetSection(categoryTotals: dashboardState.categoryTotals),
-              const SizedBox(height: 40),
+                BudgetSection(categoryTotals: dashboardState.categoryTotals),
+                const SizedBox(height: 40),
 
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: Text(
-                  listTitle,
-                  key: ValueKey(dashboardState.currentFilter),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: Text(
+                    listTitle,
+                    key: ValueKey(dashboardState.currentFilter),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.05),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.05),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
                   ),
-                ),
-                child: dashboardState.filteredReceipts.isEmpty
-                    ? Center(
-                        key: const ValueKey('empty_state'),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 20),
-                          child: Text(
-                            emptyText,
-                            style: const TextStyle(color: Colors.white54),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        key: ValueKey('list_${dashboardState.currentFilter}'),
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: dashboardState.filteredReceipts.length,
-                        itemBuilder: (context, index) {
-                          final receipt =
-                              dashboardState.filteredReceipts[index];
-                          final rawDate = DateTime.parse(
-                            receipt['purchase_date'],
-                          );
-                          final formattedDate = DateFormat(
-                            'dd-MM-yyyy',
-                          ).format(rawDate);
-                          final formattedAmount = NumberFormat.currency(
-                            symbol: '₹',
-                            decimalDigits: 2,
-                          ).format(receipt['total_amount']);
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Dismissible(
-                              key: Key(receipt['id'].toString()),
-                              direction: DismissDirection.startToEnd,
-                              background: Container(
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 24),
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: Colors.redAccent.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.delete_sweep_rounded,
-                                  color: Colors.redAccent,
-                                  size: 30,
-                                ),
-                              ),
-                              onDismissed: (direction) {
-                                ref
-                                    .read(dashboardProvider.notifier)
-                                    .deleteReceipt(receipt['id']);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${receipt['merchant_name']} deleted',
-                                    ),
-                                    backgroundColor: const Color(0xFF2C2C2E),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                              child: ReceiptListItem(
-                                merchantName: receipt['merchant_name'],
-                                category: receipt['category_name'] ?? 'Other',
-                                date: formattedDate,
-                                totalAmount: formattedAmount,
-                              ),
+                  child: dashboardState.filteredReceipts.isEmpty
+                      ? Center(
+                          key: const ValueKey('empty_state'),
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 20),
+                            child: Text(
+                              emptyText,
+                              style: const TextStyle(color: Colors.white54),
                             ),
-                          );
-                        },
-                      ),
-              ),
-              const SizedBox(height: 80),
-            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          key: ValueKey('list_${dashboardState.currentFilter}'),
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: dashboardState.filteredReceipts.length,
+                          itemBuilder: (context, index) {
+                            final receipt =
+                                dashboardState.filteredReceipts[index];
+                            final rawDate = DateTime.parse(
+                              receipt['purchase_date'],
+                            );
+                            final formattedDate = DateFormat(
+                              'dd-MM-yyyy',
+                            ).format(rawDate);
+                            final formattedAmount = NumberFormat.currency(
+                              symbol: '₹',
+                              decimalDigits: 2,
+                            ).format(receipt['total_amount']);
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Dismissible(
+                                key: Key(receipt['id'].toString()),
+                                direction: DismissDirection.startToEnd,
+                                background: Container(
+                                  alignment: Alignment.centerLeft,
+                                  padding: const EdgeInsets.only(left: 24),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.redAccent.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.delete_sweep_rounded,
+                                    color: Colors.redAccent,
+                                    size: 30,
+                                  ),
+                                ),
+                                onDismissed: (direction) {
+                                  ref
+                                      .read(dashboardProvider.notifier)
+                                      .deleteReceipt(receipt['id']);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '${receipt['merchant_name']} deleted',
+                                      ),
+                                      backgroundColor: const Color(0xFF2C2C2E),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                                child: ReceiptListItem(
+                                  merchantName: receipt['merchant_name'],
+                                  category: receipt['category_name'] ?? 'Other',
+                                  date: formattedDate,
+                                  totalAmount: formattedAmount,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 80),
+              ],
+            ),
           ),
         ),
       ),

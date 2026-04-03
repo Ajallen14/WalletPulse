@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_pulse/core/database/database_helper.dart';
-import 'package:wallet_pulse/features/dashboard/presentation/main_layout.dart';
+import 'package:wallet_pulse/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,9 +11,7 @@ void main() async {
 
   await DatabaseHelper.instance.database;
 
-  runApp(
-    const ProviderScope(child: WalletPulseApp()),
-  );
+  runApp(const ProviderScope(child: WalletPulseApp()));
 }
 
 class WalletPulseApp extends StatelessWidget {
@@ -22,12 +20,12 @@ class WalletPulseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WalletPulse',
+      title: 'Folia',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
-      home: const MainLayout(),
+      home: const SplashScreen(),
     );
   }
 }
