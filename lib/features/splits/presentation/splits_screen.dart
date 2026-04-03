@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/database/database_helper.dart';
 import 'split_detail_screen.dart';
+import 'balances_screen.dart';
 
 class SplitsScreen extends StatefulWidget {
   const SplitsScreen({super.key});
@@ -173,11 +174,19 @@ class _SplitsScreenState extends State<SplitsScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                _buildGlassContainer(
-                  padding: const EdgeInsets.all(8),
-                  child: const Icon(
-                    Icons.people_alt_outlined,
-                    color: Colors.white,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BalancesScreen()),
+                    );
+                  },
+                  child: _buildGlassContainer(
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.people_alt_outlined,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],

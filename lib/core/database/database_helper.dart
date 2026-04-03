@@ -254,4 +254,46 @@ class DatabaseHelper {
       }
     });
   }
+
+  // Get detailed balances grouped by person and bill
+  Future<List<Map<String, dynamic>>> getDetailedBalances() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT 
+        s.user_name,
+        SUM(s.owed_amount) as amount_owed_for_bill,
+        r.id as receipt_id,
+        r.merchant_name,
+        r.purchase_date
+      FROM line_item_splits s
+      JOIN line_items l ON s.line_item_id = l.id
+      JOIN receipts r ON l.receipt_id = r.id
+      WHERE LOWER(s.user_name) != 'me'
+      GROUP BY LOWER(s.user_name), r.id
+      HAVING amount_owed_for_bill > 0
+      ORDER BY r.purchase_date DESC
+    ''');
+  }
+
+  // Mark a specific friend's debt as paid
+  Future<void> settleBalance(String userName) async {
+    final db = await instance.database;
+    await db.delete(
+      'line_item_splits',
+      where: 'LOWER(user_name) = ?',
+      whereArgs: [userName.toLowerCase()],
+    );
+  }
+
+  // Get the history of bills that have been split
+  Future<List<Map<String, dynamic>>> getSplitHistory() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT DISTINCT r.id, r.merchant_name, r.purchase_date, r.total_amount
+      FROM receipts r
+      JOIN line_items l ON r.id = l.receipt_id
+      JOIN line_item_splits s ON l.id = s.line_item_id
+      ORDER BY r.purchase_date DESC
+    ''');
+  }
 }
