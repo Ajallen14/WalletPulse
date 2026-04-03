@@ -212,4 +212,46 @@ class DatabaseHelper {
       whereArgs: [receiptId],
     );
   }
+
+  // Fetch only receipts that actually have line items
+  Future<List<Map<String, dynamic>>> getReceiptsWithLineItems() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT r.*, c.name as category_name
+      FROM receipts r
+      LEFT JOIN categories c ON r.category_id = c.id
+      WHERE EXISTS (
+        SELECT 1 FROM line_items l WHERE l.receipt_id = r.id
+      )
+      ORDER BY r.purchase_date DESC
+    ''');
+  }
+
+  // Save Splits to the Database
+  Future<void> saveSplits(
+    String receiptId,
+    List<Map<String, dynamic>> splits,
+  ) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      // Clear any existing splits for this receipt so we don't duplicate
+      await txn.rawDelete(
+        '''
+        DELETE FROM line_item_splits 
+        WHERE line_item_id IN (SELECT id FROM line_items WHERE receipt_id = ?)
+      ''',
+        [receiptId],
+      );
+
+      // Insert the new assignments
+      for (var split in splits) {
+        await txn.insert('line_item_splits', {
+          'id': _uuid.v4(),
+          'line_item_id': split['line_item_id'],
+          'user_name': split['user_name'],
+          'owed_amount': split['owed_amount'],
+        });
+      }
+    });
+  }
 }
