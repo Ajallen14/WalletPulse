@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
@@ -217,15 +216,26 @@ class _BalancesScreenState extends State<BalancesScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Center(
-              child: Text(
-                'FOLIA',
-                style: TextStyle(
-                  color: Color(0xFFE0F7FA),
-                  fontSize: 16,
-                  letterSpacing: 3,
-                  fontWeight: FontWeight.bold,
-                ),
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/images/folia_logo.png',
+                    width: 24,
+                    height: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'FOLIA',
+                    style: TextStyle(
+                      color: Color(0xFFE0F7FA),
+                      fontSize: 16,
+                      letterSpacing: 3,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -314,10 +324,15 @@ class _BalancesScreenState extends State<BalancesScreen> {
             }),
 
             const Divider(color: Colors.white24, height: 32, thickness: 1),
-            const Center(
-              child: Text(
-                'Calculated with ❤️ by FOLIA',
-                style: TextStyle(color: Colors.white38, fontSize: 14),
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Calculated with ❤️ by FOLIA',
+                    style: TextStyle(color: Colors.white38, fontSize: 14),
+                  ),
+                ],
               ),
             ),
           ],
@@ -690,8 +705,6 @@ class _BalancesScreenState extends State<BalancesScreen> {
                                         color: Colors.white38,
                                       ),
                                     ),
-
-                                    // SHARE ICON ADDED HERE!
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -750,7 +763,7 @@ class _BalancesScreenState extends State<BalancesScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Padding(padding: padding, child: child),
         ),
       ),
