@@ -53,6 +53,7 @@ class _BalancesScreenState extends State<BalancesScreen> {
       double owed = (row['amount_owed_for_bill'] as num).toDouble();
       grouped[cleanName]!['totalOwed'] += owed;
       grouped[cleanName]!['bills'].add({
+        'receipt_id': row['receipt_id'],
         'merchant_name': row['merchant_name'],
         'purchase_date': row['purchase_date'],
         'amount': owed,
@@ -78,6 +79,7 @@ class _BalancesScreenState extends State<BalancesScreen> {
     });
   }
 
+  // Settles all bills for a person
   Future<void> _markAsPaid(String friendName) async {
     await DatabaseHelper.instance.settleBalance(friendName);
 
@@ -85,6 +87,25 @@ class _BalancesScreenState extends State<BalancesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$friendName settled up!'),
+          backgroundColor: Colors.teal,
+        ),
+      );
+    }
+    _loadData();
+  }
+
+  // Settles one specific bill for a person
+  Future<void> _markSpecificBillAsPaid(
+    String friendName,
+    String receiptId,
+    String merchantName,
+  ) async {
+    await DatabaseHelper.instance.settleSpecificBill(friendName, receiptId);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$friendName settled the $merchantName bill!'),
           backgroundColor: Colors.teal,
         ),
       );
@@ -254,7 +275,8 @@ class _BalancesScreenState extends State<BalancesScreen> {
                                             ),
                                           ),
                                           const SizedBox(height: 12),
-                                          // Specific Bill details
+
+                                          // Specific Bill details with Checkmarks
                                           ...bills.map((bill) {
                                             final date = DateFormat('dd MMM')
                                                 .format(
@@ -267,35 +289,75 @@ class _BalancesScreenState extends State<BalancesScreen> {
                                                   symbol: '₹',
                                                   decimalDigits: 2,
                                                 ).format(bill['amount']);
+
                                             return Padding(
                                               padding: const EdgeInsets.only(
-                                                bottom: 8,
+                                                bottom: 12,
                                               ),
                                               child: Row(
                                                 mainAxisAlignment:
                                                     MainAxisAlignment
                                                         .spaceBetween,
                                                 children: [
-                                                  Text(
-                                                    '${bill['merchant_name']} ($date)',
-                                                    style: const TextStyle(
-                                                      color: Colors.white70,
+                                                  Expanded(
+                                                    child: Text(
+                                                      '${bill['merchant_name']} ($date)',
+                                                      style: const TextStyle(
+                                                        color: Colors.white70,
+                                                      ),
                                                     ),
                                                   ),
-                                                  Text(
-                                                    billAmount,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        billAmount,
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      // THE INDIVIDUAL CHECKMARK BUTTON
+                                                      GestureDetector(
+                                                        onTap: () =>
+                                                            _markSpecificBillAsPaid(
+                                                              friendName,
+                                                              bill['receipt_id'],
+                                                              bill['merchant_name'],
+                                                            ),
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                6,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(
+                                                              0xFFE0F7FA,
+                                                            ).withOpacity(0.15),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
+                                                          ),
+                                                          child: const Icon(
+                                                            Icons.check_rounded,
+                                                            color: Color(
+                                                              0xFFE0F7FA,
+                                                            ),
+                                                            size: 18,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ],
                                               ),
                                             );
                                           }),
-                                          const SizedBox(height: 20),
-                                          // Mark Paid Button
+                                          const SizedBox(height: 16),
+
+                                          // Master Settle All Button
                                           SizedBox(
                                             width: double.infinity,
                                             child: ElevatedButton(
@@ -311,7 +373,7 @@ class _BalancesScreenState extends State<BalancesScreen> {
                                                 ),
                                               ),
                                               child: const Text(
-                                                'Mark as Paid',
+                                                'Mark All as Paid',
                                                 style: TextStyle(
                                                   color: Colors.black87,
                                                   fontWeight: FontWeight.bold,

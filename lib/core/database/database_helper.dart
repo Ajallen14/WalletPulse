@@ -265,6 +265,18 @@ class DatabaseHelper {
     );
   }
 
+  // Mark a specific bill as paid for a specific friend
+  Future<void> settleSpecificBill(String userName, String receiptId) async {
+    final db = await instance.database;
+    await db.rawDelete('''
+      DELETE FROM line_item_splits 
+      WHERE LOWER(user_name) = ? 
+      AND line_item_id IN (
+        SELECT id FROM line_items WHERE receipt_id = ?
+      )
+    ''', [userName.toLowerCase(), receiptId]);
+  }
+
   Future<List<Map<String, dynamic>>> getSplitHistory() async {
     final db = await instance.database;
     return await db.rawQuery('''
