@@ -37,48 +37,6 @@ Whether you are scanning a receipt from lunch, checking how close you are to you
 
 ---
 
-## 📁 Project Structure
- 
-```
-lib/
-├── main.dart                         # App entry point
-├── splash_screen.dart                # Animated splash screen
-│
-├── core/
-│   ├── database/
-│   │   └── database_helper.dart      # SQLite setup & query helpers
-│   └── widgets/
-│       └── processing_overlay.dart   # Shared loading overlay widget
-│
-└── features/
-    ├── dashboard/
-    │   ├── presentation/
-    │   │   └── widgets/
-    │   │       ├── budget_section.dart       # Budget progress bar cards
-    │   │       ├── receipt_list_item.dart    # Individual expense row
-    │   │       ├── home_screen.dart          # Main dashboard screen
-    │   │       └── main_layout.dart          # Bottom nav & page scaffold
-    │   └── providers/
-    │       └── receipt_provider.dart         # Expense state (Riverpod)
-    │
-    ├── scanner/
-    │   ├── presentation/
-    │   │   ├── camera_screen.dart            # Live camera capture
-    │   │   ├── manual_entry_screen.dart      # Manual expense form
-    │   │   └── receipt_preview_screen.dart   # AI-parsed receipt review
-    │   └── providers/
-    │       └── gemini_provider.dart          # Google Generative AI integration
-    │
-    └── splits/
-        └── presentation/
-            └── widgets/
-                ├── export_receipt_widget.dart  # Hidden widget → PNG export
-                ├── balances_screen.dart         # Per-friend balance view
-                ├── split_detail_screen.dart     # Individual bill breakdown
-                └── splits_screen.dart           # Friends ledger overview
-```
-
----
 
 ## Screenshots
 
